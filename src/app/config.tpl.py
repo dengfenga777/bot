@@ -34,13 +34,7 @@ class Settings(BaseSettings):
     INVITATION_CREDITS: int = 288
     PREMIUM_DAILY_CREDITS: int = 15
     DONATION_MULTIPLIER: int = 5  # 捐赠积分倍数
-    USER_TRAFFIC_LIMIT: int = (
-        30 * 1024 * 1024 * 1024
-    )  # 每日用户流量限额，单位为字节（30GB）
-    PREMIUM_USER_TRAFFIC_LIMIT: int = (
-        60 * 1024 * 1024 * 1024
-    )  # 每日高级用户流量限额，单位为字节（60GB）
-    CREDITS_COST_PER_10GB: int = 5  # 超出每日限额后，每 10GB 流量消耗的积分
+    # 流量限额与扣费逻辑已移除
 
     # 功能开放设置
     PREMIUM_UNLOCK_ENABLED: bool = False  # 是否开放 premium 解锁功能
@@ -82,7 +76,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
-    REDIS_LINE_TRAFFIC_STATS_HANDLE_SIZE: int = 1000  # Redis 流量统计单次处理条数
+    # 线路流量统计已移除
 
     # redeem code
     PRIVILEGED_CODES: list[str] = []
