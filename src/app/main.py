@@ -22,6 +22,7 @@ from app.update_db import (
     update_credits,
     update_line_traffic_stats,
     update_plex_info,
+    push_emby_watch_rank,
 )
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
@@ -117,6 +118,31 @@ def add_init_scheduler_job():
         next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=1),
     )
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
+
+    # 每天 23:55 推送 Emby 日榜
+    scheduler.add_async_job(
+        func=lambda: push_emby_watch_rank(days=1, top_n=10),
+        trigger="cron",
+        id="push_emby_day_rank",
+        replace_existing=True,
+        max_instances=1,
+        hour=23,
+        minute=55,
+    )
+    logger.info("添加定时任务：每天 23:55 推送 Emby 观看时长日榜")
+
+    # 每周日 23:59 推送 Emby 7天总结
+    scheduler.add_async_job(
+        func=lambda: push_emby_watch_rank(days=7, top_n=20),
+        trigger="cron",
+        id="push_emby_week_rank",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="sun",
+        hour=23,
+        minute=59,
+    )
+    logger.info("添加定时任务：每周日 23:59 推送 Emby 7天观看总结")
 
     # 每小时检查并结束过期的竞拍活动 (同步任务)
     scheduler.add_async_job(

@@ -266,6 +266,63 @@ async def update_credits():
         await asyncio.sleep(1)
 
 
+async def push_emby_watch_rank(days: int = 1, top_n: int = 10) -> None:
+    """推送 Emby 观看时长排行榜到群（每天/每周总结）
+
+    使用 Emby 的自定义查询统计最近 days 天每个用户的观看时长并排行，
+    通过 Telegram 发送到管理员群/第一个管理员ID。
+    """
+    try:
+        emby = Emby()
+        db = DB()
+
+        results = emby.get_user_watch_time_rank(days=days, limit=top_n)
+        if not results:
+            if settings.ADMIN_CHAT_ID:
+                await send_message_by_url(
+                    chat_id=settings.ADMIN_CHAT_ID[0],
+                    text=f"Emby 观看时长榜通知：近{days}天无数据",
+                    disable_notification=True,
+                )
+            return
+
+        # 组装显示名与时长
+        lines = []
+        for idx, (emby_user_id, hours) in enumerate(results[:top_n], start=1):
+            info = db.get_emby_info_by_emby_id(emby_user_id)
+            if info:
+                emby_username = info[1]  # (emby_id, emby_username, ...)? verify order
+                tg_id = info[-1] if len(info) >= 5 else None
+                # our table schema: (emby_username, emby_id, tg_id, ...)
+                emby_username = info[0]
+                tg_id = info[2]
+                name = (
+                    get_user_name_from_tg_id(tg_id)
+                    if tg_id is not None
+                    else emby_username or emby_user_id
+                )
+            else:
+                name = emby_user_id
+            lines.append(f"{idx}. {name}: {hours:.2f} 小时")
+
+        title = (
+            f"【Emby 观看时长榜 - 日榜】\n\n" if days == 1 else f"【Emby 观看时长榜 - 近{days}天】\n\n"
+        )
+        text = title + "\n".join(lines)
+
+        # 发送到管理员组/第一个管理员
+        target = settings.ADMIN_CHAT_ID[0] if settings.ADMIN_CHAT_ID else None
+        if target:
+            await send_message_by_url(chat_id=target, text=text, disable_notification=True)
+    except Exception as e:
+        logger.error(f"push_emby_watch_rank failed: {e}")
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
 def update_plex_info():
     """更新 plex 用户信息"""
     _db = DB()

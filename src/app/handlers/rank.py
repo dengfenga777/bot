@@ -3,6 +3,7 @@ from app.db import DB
 from app.emby import Emby
 from app.log import logger
 from app.utils import get_user_name_from_tg_id, send_message, is_admin
+from app.update_db import push_emby_watch_rank
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -192,3 +193,23 @@ __all__ = [
     "watched_time_rank_combined_handler",
     "device_rank_handler",
 ]
+
+
+# 手动触发 Emby 观看时长日榜/周榜
+async def emby_day_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await push_emby_watch_rank(days=1, top_n=10)
+    await send_message(update.effective_chat.id, "已推送 Emby 日榜", context)
+
+
+async def emby_week_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await push_emby_watch_rank(days=7, top_n=20)
+    await send_message(update.effective_chat.id, "已推送 Emby 7天总结", context)
+
+
+emby_day_rank_handler = CommandHandler("emby_day_rank", emby_day_rank)
+emby_week_rank_handler = CommandHandler("emby_week_rank", emby_week_rank)
+
+__all__.extend([
+    "emby_day_rank_handler",
+    "emby_week_rank_handler",
+])

@@ -200,6 +200,60 @@ class Emby:
 
         return user_stats
 
+    def get_user_watch_time_rank(self, days: int = 1, limit: int = 20) -> list[tuple[str, float]]:
+        """按时间窗口统计用户观看时长排行（单位：小时）
+
+        Args:
+            days: 统计最近天数（默认1天）
+            limit: 返回前N名
+
+        Returns:
+            列表 [(emby_user_id, hours), ...]，已按 hours 降序
+        """
+        try:
+            from datetime import datetime, timedelta
+
+            end = datetime.now()
+            start = end - timedelta(days=days)
+            start_time = start.strftime("%Y-%m-%d %H:%M:%S")
+            end_time = end.strftime("%Y-%m-%d %H:%M:%S")
+
+            headers = {"accept": "application/json", "Content-Type": "application/json"}
+            data = {
+                "CustomQueryString": (
+                    "SELECT UserId, SUM(PlayDuration - PauseDuration) AS WatchTime "
+                    "FROM PlaybackActivity "
+                    f"WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' "
+                    "GROUP BY UserId ORDER BY WatchTime DESC"
+                ),
+                "ReplaceUserId": True,
+            }
+
+            resp = requests.post(
+                url=self.base_url + "/user_usage_stats/submit_custom_query",
+                params={"api_key": self.api_token},
+                headers=headers,
+                data=json.dumps(data),
+                timeout=10,
+            )
+            if not resp.ok:
+                logger.error(f"Emby rank API failed: {resp.status_code} {resp.text}")
+                return []
+            js = resp.json() or {}
+            rows = js.get("results", []) or []
+            results: list[tuple[str, float]] = []
+            for row in rows[: limit or 999]:
+                try:
+                    user_id, watch_seconds = row
+                    hours = float(max(watch_seconds or 0, 0)) / 3600.0
+                    results.append((str(user_id), hours))
+                except Exception:
+                    continue
+            return results
+        except Exception as e:
+            logger.error(f"Emby get_user_watch_time_rank failed: {e}")
+            return []
+
     def get_libraries(self) -> dict[str, dict[str, Any]]:
         headers = {"accept": "application/json"}
         params = {"api_key": self.api_token}
