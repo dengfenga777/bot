@@ -1,5 +1,8 @@
 from app.config import settings
 from app.utils import send_message, is_admin
+from app.emby import Emby
+from app.tautulli import Tautulli
+import requests
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -51,3 +54,76 @@ get_register_status_handler = CommandHandler("register_status", get_register_sta
 set_register_handler = CommandHandler("set_register", set_register)
 
 __all__ = ["get_register_status_handler", "set_register_handler"]
+
+
+# 实时在线人数（Plex + Emby）
+async def online_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+
+    lines = []
+
+    # Plex 在线（通过 Tautulli）
+    try:
+        plex_online = 0
+        plex_lines = []
+        if settings.TAUTULLI_URL and settings.TAUTULLI_APIKEY:
+            data = Tautulli().get_activity() or {}
+            sessions = data.get("sessions", []) or []
+            plex_online = int(data.get("stream_count", len(sessions) or 0) or 0)
+            for s in sessions[:10]:
+                user = s.get("user") or s.get("friendly_name") or s.get("username") or "用户"
+                title = s.get("full_title") or s.get("title") or s.get("grandparent_title") or "播放中"
+                player = s.get("player") or {}
+                device = player.get("product") or player.get("platform") or s.get("player") or "客户端"
+                plex_lines.append(f"- {user} | {title} | {device}")
+        lines.append(
+            """
+<strong>Plex 在线</strong>
+{}
+            """.format(
+                f"当前 {plex_online} 人在线\n" + ("\n".join(plex_lines) if plex_lines else "")
+            )
+        )
+    except Exception as e:
+        lines.append(f"Plex 在线信息获取失败: {e}")
+
+    # Emby 在线（直接查询 Sessions）
+    try:
+        emby_online = 0
+        emby_lines = []
+        if settings.EMBY_BASE_URL and settings.EMBY_API_TOKEN:
+            emby = Emby()
+            resp = requests.get(
+                f"{emby.base_url.rstrip('/')}/Sessions",
+                params={"api_key": emby.api_token},
+                timeout=8,
+            )
+            if resp.ok:
+                sessions = resp.json() or []
+                emby_online = len(sessions)
+                for s in sessions[:10]:
+                    user = s.get("UserName") or s.get("UserId") or "用户"
+                    now = s.get("NowPlayingItem") or {}
+                    title = now.get("Name") or now.get("SeriesName") or "播放中"
+                    device = s.get("Client") or s.get("DeviceName") or "客户端"
+                    emby_lines.append(f"- {user} | {title} | {device}")
+        lines.append(
+            """
+<strong>Emby 在线</strong>
+{}
+            """.format(
+                f"当前 {emby_online} 人在线\n" + ("\n".join(emby_lines) if emby_lines else "")
+            )
+        )
+    except Exception as e:
+        lines.append(f"Emby 在线信息获取失败: {e}")
+
+    body = "\n".join(lines).strip()
+    if not body:
+        body = "暂无在线信息"
+    await send_message(chat_id=chat_id, text=body, parse_mode="HTML", context=context)
+
+
+online_status_handler = CommandHandler("online", online_status)
+
+__all__.append("online_status_handler")

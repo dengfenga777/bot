@@ -19,6 +19,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     /play\_duration\_rank - 查看观看时长榜
     /play\_duration\_rank\_all - 查看观看时长榜（合并 Plex+Emby）
     /device\_rank - 查看设备榜
+    /online - 查看实时在线（Plex + Emby）
     /register\_status - 查看 Plex/Emby 是否可注册
 
 
