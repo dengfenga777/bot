@@ -110,7 +110,7 @@ self.addEventListener('push', event => {
     };
     
     event.waitUntil(
-      self.registration.showNotification('FunMedia 助手', options)
+      self.registration.showNotification('Misaya 助手', options)
     );
   }
 });

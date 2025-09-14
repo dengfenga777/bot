@@ -2,7 +2,7 @@ from app.config import (
     settings,
 )
 from app.update_db import add_all_plex_user
-from app.utils import send_message
+from app.utils import send_message, is_admin
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -10,7 +10,8 @@ from telegram.ext import CommandHandler, ContextTypes
 # 管理员命令：更新数据库
 async def update_database(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    if chat_id not in settings.ADMIN_CHAT_ID:
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
         await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
     try:

@@ -4,10 +4,10 @@
 import { apiClient } from '@/main';
 
 /**
- * 获取NSFW操作相关的积分信息
+ * 获取NSFW操作相关的花币信息
  * @param {string} service - 服务类型 ('plex' 或 'emby')
  * @param {string} operation - 操作类型 ('unlock' 或 'lock')
- * @returns {Promise<Object>} 包含积分消耗或返还信息的Promise
+ * @returns {Promise<Object>} 包含花币消耗或返还信息的Promise
  */
 export async function getNsfwOperationInfo(service, operation) {
   try {
@@ -16,7 +16,7 @@ export async function getNsfwOperationInfo(service, operation) {
     });
     return response.data;
   } catch (error) {
-    console.error('获取NSFW操作积分信息失败:', error);
+    console.error('获取NSFW操作花币信息失败:', error);
     throw error;
   }
 }

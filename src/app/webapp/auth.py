@@ -32,9 +32,38 @@ def verify_telegram_data(data: dict) -> bool:
 
 
 def get_telegram_user(request: Request) -> TelegramUser:
-    """从请求中获取和验证 Telegram 用户数据"""
+    """从请求中获取和验证 Telegram 用户数据。
+
+    支持三种模式：
+    1) 正常的 Telegram WebApp，通过中间件注入 request.state.telegram_data
+    2) 开发模式（DEBUG=true）下，允许使用开发头部模拟：
+       - X-Dev-Tg-User-Id: 必填，整数
+       - X-Dev-Tg-Username: 可选
+       - X-Dev-Tg-First-Name: 可选
+    3) 明确无认证时返回 401
+    """
     try:
-        # 从请求头中获取 telegram user 信息
+        # 开发模式：允许通过自定义头模拟用户
+        if not hasattr(request.state, "telegram_data"):
+            if settings.DEBUG:
+                mock_id = request.headers.get("X-Dev-Tg-User-Id")
+                if mock_id:
+                    try:
+                        mock_user = TelegramUser(
+                            id=int(mock_id),
+                            username=request.headers.get("X-Dev-Tg-Username"),
+                            first_name=request.headers.get("X-Dev-Tg-First-Name") or "Dev",
+                            is_premium=False,
+                        )
+                        return mock_user
+                    except Exception:
+                        pass
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="需要 Telegram 认证",
+            )
+
+        # 从中间件注入的数据解析用户信息
         user_data = request.state.telegram_data.get("user")
         if not user_data:
             raise HTTPException(
@@ -44,12 +73,11 @@ def get_telegram_user(request: Request) -> TelegramUser:
 
         # 检查是否是模拟数据
         if request.state.telegram_data.get("hash") == "mock_hash_for_development":
-            # 开发环境模拟数据，直接解析JSON
             user_dict = json.loads(user_data)
             return TelegramUser(**user_dict)
-        else:
-            # 正常的Telegram数据
-            return TelegramUser(**json.loads(user_data))
+
+        # 正常的 Telegram 数据
+        return TelegramUser(**json.loads(user_data))
 
     except HTTPException:
         raise

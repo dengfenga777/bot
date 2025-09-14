@@ -186,12 +186,23 @@ async def send_message_by_url(
 
 
 def get_user_total_duration(home_stats: dict):
-    """Get user's total watched duration"""
+    """Get user's total watched duration
+
+    Tautulli API 失败时返回 None，本函数做容错并返回空字典。
+    期望的数据格式为 {"rows": [{"user_id": x, "total_duration": y}, ...]}
+    """
+    if not isinstance(home_stats, dict):
+        return {}
+    rows = home_stats.get("rows", []) or []
     user_total_duration: dict = {}
-    for row in home_stats.get("rows", []):
-        user_id = row.get("user_id")
-        total_duration = float(row.get("total_duration") / 3600)
-        user_total_duration.update({user_id: total_duration})
+    for row in rows:
+        try:
+            user_id = row.get("user_id")
+            total_duration = float((row.get("total_duration") or 0) / 3600)
+            if user_id is not None:
+                user_total_duration[user_id] = total_duration
+        except Exception:
+            continue
     return user_total_duration
 
 
@@ -257,6 +268,18 @@ async def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
             await asyncio.sleep(1)
             retry -= 1
     return None
+
+
+def is_admin(user_id: int) -> bool:
+    """Check if a Telegram user_id is in admin list.
+
+    settings.ADMIN_CHAT_ID may contain ints or strings (from .env). Normalize to str for comparison.
+    """
+    try:
+        admin_ids = {str(x).strip() for x in settings.ADMIN_CHAT_ID}
+        return str(user_id) in admin_ids
+    except Exception:
+        return False
 
 
 def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):

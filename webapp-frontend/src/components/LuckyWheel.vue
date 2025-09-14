@@ -63,18 +63,18 @@
           <p class="text-h5 mb-2">获得了</p>
           <p class="text-h4 text-primary font-weight-bold">{{ winResult?.name }}</p>
           
-          <!-- 显示积分变化 -->
+          <!-- 显示花币变化 -->
           <div v-if="winResult?.credits_change !== undefined" class="mt-4">
             <v-divider class="my-3"></v-divider>
             <div class="credits-info">
               <p class="text-body-1 mb-1">
-                积分变化：
+                花币变化：
                 <span :class="winResult.credits_change >= 0 ? 'text-success' : 'text-error'" class="font-weight-bold">
                   {{ winResult.credits_change >= 0 ? '+' : '' }}{{ winResult.credits_change }}
                 </span>
               </p>
               <p class="text-body-2 text-medium-emphasis">
-                当前积分：{{ winResult.current_credits?.toFixed(2) }}
+                当前花币：{{ winResult.current_credits?.toFixed(2) }}
               </p>
             </div>
           </div>

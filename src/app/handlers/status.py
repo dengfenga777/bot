@@ -1,5 +1,5 @@
 from app.config import settings
-from app.utils import send_message
+from app.utils import send_message, is_admin
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -18,8 +18,9 @@ Emby: {"可注册" if settings.EMBY_REGISTER else "注册关闭"}
 
 # 管理员命令: 设置注册状态
 async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update._effective_chat.id
-    if chat_id not in settings.ADMIN_CHAT_ID:
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
         await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
     text = update.message.text

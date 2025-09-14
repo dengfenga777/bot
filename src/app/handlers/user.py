@@ -5,7 +5,7 @@ from app.config import settings
 from app.db import DB
 from app.log import logger
 from app.overseerr import Overseerr
-from app.utils import get_user_name_from_tg_id, send_message
+from app.utils import get_user_name_from_tg_id, send_message, is_admin
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -22,11 +22,11 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     _credits = _info[2]
-    # 检查剩余积分
+    # 检查剩余花币
     if _credits < settings.INVITATION_CREDITS:
         _db.close()
         await send_message(
-            chat_id=chat_id, text="错误：您的积分不足，无法兑换邀请码", context=context
+            chat_id=chat_id, text=f"错误：您的{settings.MONEY_NAME}不足，无法兑换邀请码", context=context
         )
         return
     # 减去积分
@@ -42,12 +42,12 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             chat_id=chat_id, text="错误: 更新邀请码失败, 请联系管理员", context=context
         )
         return
-    # > 再更新积分情况
+    # > 再更新花币情况
     res = _db.update_user_credits(_credits, tg_id=chat_id)
     if not res:
         _db.close()
         await send_message(
-            chat_id=chat_id, text="错误: 更新积分失败, 请联系管理员", context=context
+            chat_id=chat_id, text=f"错误: 更新{settings.MONEY_NAME}失败, 请联系管理员", context=context
         )
         return
     _db.close()
@@ -75,11 +75,14 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             context=context,
         )
         return
-    _credits, _donation = _stats_info[2], _stats_info[1]
+    if _stats_info:
+        _credits, _donation = _stats_info[2], _stats_info[1]
+    else:
+        _credits, _donation = 0.0, 0.0
     _codes = "" if not _codes else "\n".join(_codes)
     body_text = f"""
 {"=" * 44}
-<strong>可用积分: </strong>{_credits:.2f}
+<strong>可用{settings.MONEY_NAME}: </strong>{_credits:.2f}
 <strong>捐赠金额: </strong>{_donation}
 <strong>可用邀请码：</strong>
 {_codes}
@@ -187,7 +190,8 @@ async def create_overseerr(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # 管理员命令: 设置捐赠信息
 async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    if chat_id not in settings.ADMIN_CHAT_ID:
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
         await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
     text = update.message.text
@@ -224,13 +228,13 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if not res:
             _db.close()
             await send_message(
-                chat_id=chat_id, text="错误：更新积分失败，请检查", context=context
+                chat_id=chat_id, text=f"错误：更新{settings.MONEY_NAME}失败，请检查", context=context
             )
             return
         # 通知该用户
         await send_message(
             chat_id=tg_id,
-            text=f"通知：感谢您的捐赠，已为您增加积分 {donation * 2}",
+            text=f"通知：感谢您的捐赠，已为您增加{settings.MONEY_NAME} {donation * 2}",
             context=context,
         )
 

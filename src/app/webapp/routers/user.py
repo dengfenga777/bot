@@ -590,7 +590,7 @@ async def get_nsfw_info(
     operation: str,
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """获取NSFW操作所需积分或可退回积分"""
+    """获取NSFW操作所需花币或可退回花币"""
     tg_id = user.id
 
     if service not in ["plex", "emby"]:
@@ -602,10 +602,10 @@ async def get_nsfw_info(
     _db = DB()
     try:
         if operation == "unlock":
-            # 解锁操作返回所需积分
+            # 解锁操作返回所需花币
             return {"cost": settings.UNLOCK_CREDITS}
         else:
-            # 锁定操作计算可返还积分
+            # 锁定操作计算可返还花币
             if service == "plex":
                 info = _db.get_plex_info_by_tg_id(tg_id)
                 if not info or info[5] != 1:
@@ -617,7 +617,7 @@ async def get_nsfw_info(
                     raise HTTPException(status_code=400, detail="您尚未解锁 NSFW 内容")
                 unlock_time = info[4]
 
-            # 计算可返还积分
+            # 计算可返还花币
             credits_fund = caculate_credits_fund(unlock_time, settings.UNLOCK_CREDITS)
             return {"refund": credits_fund}
     except Exception as e:
@@ -669,9 +669,9 @@ async def nsfw_operation(
                     raise HTTPException(status_code=400, detail="您已拥有全部库权限")
 
                 if credits < settings.UNLOCK_CREDITS:
-                    raise HTTPException(status_code=400, detail="积分不足")
+                    raise HTTPException(status_code=400, detail="花币不足")
 
-                # 扣除积分
+                # 扣除花币
                 credits -= settings.UNLOCK_CREDITS
 
                 # 更新权限
@@ -686,7 +686,7 @@ async def nsfw_operation(
 
                 # 更新数据库
                 if not _db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                    raise HTTPException(status_code=500, detail="更新花币失败")
 
                 if not _db.update_all_lib_flag(
                     all_lib=1, unlock_time=unlock_time, plex_id=plex_id
@@ -706,9 +706,9 @@ async def nsfw_operation(
                     raise HTTPException(status_code=400, detail="您已拥有全部库权限")
 
                 if credits < settings.UNLOCK_CREDITS:
-                    raise HTTPException(status_code=400, detail="积分不足")
+                    raise HTTPException(status_code=400, detail="花币不足")
 
-                # 扣除积分
+                # 扣除花币
                 credits -= settings.UNLOCK_CREDITS
 
                 # 更新权限
@@ -722,7 +722,7 @@ async def nsfw_operation(
 
                 # 更新数据库
                 if not _db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                    raise HTTPException(status_code=500, detail="更新花币失败")
 
                 if not _db.update_all_lib_flag(
                     all_lib=1, unlock_time=unlock_time, tg_id=tg_id, media_server="emby"
@@ -744,7 +744,7 @@ async def nsfw_operation(
                 if all_lib == 0:
                     raise HTTPException(status_code=400, detail="您未解锁NSFW内容")
 
-                # 计算返还积分
+                # 计算返还花币
                 credits_fund = caculate_credits_fund(
                     unlock_time, settings.UNLOCK_CREDITS
                 )
@@ -764,7 +764,7 @@ async def nsfw_operation(
 
                 # 更新数据库
                 if not _db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                    raise HTTPException(status_code=500, detail="更新花币失败")
 
                 if not _db.update_all_lib_flag(
                     all_lib=0, unlock_time=None, plex_id=plex_id
@@ -784,7 +784,7 @@ async def nsfw_operation(
                 if all_lib == 0:
                     raise HTTPException(status_code=400, detail="您未解锁NSFW内容")
 
-                # 计算返还积分
+                # 计算返还花币
                 credits_fund = caculate_credits_fund(
                     unlock_time, settings.UNLOCK_CREDITS
                 )
@@ -798,7 +798,7 @@ async def nsfw_operation(
 
                 # 更新数据库
                 if not _db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                    raise HTTPException(status_code=500, detail="更新花币失败")
 
                 if not _db.update_all_lib_flag(
                     all_lib=0, unlock_time=None, tg_id=tg_id, media_server="emby"
@@ -1406,39 +1406,39 @@ async def transfer_credits(
     user: TelegramUser = Depends(get_telegram_user),
 ):
     """
-    积分转移功能
+    花币转移功能
 
-    转移积分给其他用户，收取手续费
+    转移花币给其他用户，收取手续费
     """
     try:
-        # 检查积分转移功能是否开启
+        # 检查花币转移功能是否开启
         if not settings.CREDITS_TRANSFER_ENABLED:
-            return CreditsTransferResponse(success=False, message="积分转移功能已关闭")
+            return CreditsTransferResponse(success=False, message="花币转移功能已关闭")
 
         sender_id = user.id
         target_tg_id = data.target_tg_id
         amount = data.amount
         note = data.note
 
-        # 验证不能给自己转移积分
+        # 验证不能给自己转移花币
         if sender_id == target_tg_id:
-            return CreditsTransferResponse(success=False, message="不能向自己转移积分")
+            return CreditsTransferResponse(success=False, message="不能向自己转移花币")
 
         # 验证转移数量
         if amount <= 0:
             return CreditsTransferResponse(
-                success=False, message="转移积分数量必须大于0"
+                success=False, message="转移花币数量必须大于0"
             )
 
         if amount > 10000:
             return CreditsTransferResponse(
-                success=False, message="单次转移积分不能超过10000"
+                success=False, message="单次转移花币不能超过10000"
             )
 
         _db = DB()
 
         try:
-            # 获取发送方当前积分
+        # 获取发送方当前花币
             sender_stats = _db.get_stats_by_tg_id(sender_id)
             if not sender_stats:
                 return CreditsTransferResponse(
@@ -1455,7 +1455,7 @@ async def transfer_credits(
             if sender_credits < total_deduction:
                 return CreditsTransferResponse(
                     success=False,
-                    message=f"积分不足，需要 {total_deduction:.2f} 积分（包含 {fee_amount:.2f} 手续费）",
+                    message=f"花币不足，需要 {total_deduction:.2f} 花币（包含 {fee_amount:.2f} 手续费）",
                 )
 
             # 获取接收方信息
@@ -1471,24 +1471,24 @@ async def transfer_credits(
             new_sender_credits = sender_credits - total_deduction
             new_target_credits = target_credits + amount
 
-            # 更新发送方积分
+            # 更新发送方花币
             sender_success = _db.update_user_credits(
                 new_sender_credits, tg_id=sender_id
             )
             if not sender_success:
                 return CreditsTransferResponse(
-                    success=False, message="更新发送方积分失败，请稍后再试"
+                    success=False, message="更新发送方花币失败，请稍后再试"
                 )
 
-            # 更新接收方积分
+            # 更新接收方花币
             target_success = _db.update_user_credits(
                 new_target_credits, tg_id=target_tg_id
             )
             if not target_success:
-                # 如果接收方更新失败，回滚发送方积分
+                # 如果接收方更新失败，回滚发送方花币
                 _db.update_user_credits(sender_credits, tg_id=sender_id)
                 return CreditsTransferResponse(
-                    success=False, message="更新接收方积分失败，操作已回滚"
+                    success=False, message="更新接收方花币失败，操作已回滚"
                 )
 
             # 记录转移日志
@@ -1498,7 +1498,7 @@ async def transfer_credits(
             target_name = get_user_name_from_tg_id(target_tg_id)
 
             logger.info(
-                f"积分转移成功: {sender_name}({sender_id}) -> {target_name}({target_tg_id}), "
+                f"花币转移成功: {sender_name}({sender_id}) -> {target_name}({target_tg_id}), "
                 f"金额: {amount}, 手续费: {fee_amount:.2f}"
                 + (f", 备注: {note}" if note else "")
             )
@@ -1508,17 +1508,17 @@ async def transfer_credits(
                 await send_message_by_url(
                     chat_id=target_tg_id,
                     text=f"""
-您收到了来自 {sender_name} 的积分转移: {amount} 积分
+您收到了来自 {sender_name} 的花币转移: {amount} 花币
 """
                     + (f"""备注: {note}""" if note else ""),
                     parse_mode="HTML",
                 )
             except Exception as e:
-                logger.warning(f"发送积分转移通知失败: {str(e)}")
+                logger.warning(f"发送花币转移通知失败: {str(e)}")
 
             return CreditsTransferResponse(
                 success=True,
-                message=f"成功转移 {amount} 积分给用户 {target_name}",
+                message=f"成功转移 {amount} 花币给用户 {target_name}",
                 transferred_amount=amount,
                 fee_amount=fee_amount,
                 current_credits=new_sender_credits,
@@ -1528,7 +1528,7 @@ async def transfer_credits(
             _db.close()
 
     except Exception as e:
-        logger.error(f"积分转移失败: {str(e)}")
+        logger.error(f"花币转移失败: {str(e)}")
         return CreditsTransferResponse(
             success=False, message="转移过程出错，请稍后再试"
         )

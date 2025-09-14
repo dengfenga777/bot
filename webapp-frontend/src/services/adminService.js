@@ -132,8 +132,8 @@ export async function submitDonationRecord(donationData) {
 }
 
 /**
- * 设置邀请码生成所需积分
- * @param {number} credits - 积分数量
+ * 设置邀请码生成所需花币
+ * @param {number} credits - 花币数量
  * @returns {Promise} 设置结果
  */
 export async function setInvitationCredits(credits) {
@@ -143,14 +143,14 @@ export async function setInvitationCredits(credits) {
     });
     return response;
   } catch (error) {
-    console.error('设置邀请码积分失败:', error);
+    console.error('设置邀请码花币失败:', error);
     throw error;
   }
 }
 
 /**
- * 设置解锁NSFW所需积分
- * @param {number} credits - 积分数量
+ * 设置解锁NSFW所需花币
+ * @param {number} credits - 花币数量
  * @returns {Promise} 设置结果
  */
 export async function setUnlockCredits(credits) {
@@ -160,7 +160,7 @@ export async function setUnlockCredits(credits) {
     });
     return response;
   } catch (error) {
-    console.error('设置解锁积分失败:', error);
+    console.error('设置解锁花币失败:', error);
     throw error;
   }
 }
@@ -185,8 +185,8 @@ export async function generateAdminInviteCodes(requestData) {
 }
 
 /**
- * 设置解锁Premium每日所需积分
- * @param {number} credits - 积分数量
+ * 设置解锁Premium每日所需花币
+ * @param {number} credits - 花币数量
  * @returns {Promise} 设置结果
  */
 export async function setPremiumDailyCredits(credits) {
@@ -196,7 +196,7 @@ export async function setPremiumDailyCredits(credits) {
     });
     return response;
   } catch (error) {
-    console.error('设置Premium每日积分失败:', error);
+    console.error('设置Premium每日花币失败:', error);
     throw error;
   }
 }
@@ -219,8 +219,8 @@ export async function setPremiumUnlockEnabled(enabled) {
 }
 
 /**
- * 设置积分转移功能开关
- * @param {boolean} enabled - 是否开启积分转移功能
+ * 设置花币转移功能开关
+ * @param {boolean} enabled - 是否开启花币转移功能
  * @returns {Promise} 设置结果
  */
 export async function setCreditsTransferEnabled(enabled) {
@@ -230,7 +230,7 @@ export async function setCreditsTransferEnabled(enabled) {
     });
     return response;
   } catch (error) {
-    console.error('设置积分转移功能状态失败:', error);
+    console.error('设置花币转移功能状态失败:', error);
     throw error;
   }
 }

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class InvitePointsResponse(BaseModel):
-    """邀请码积分信息响应模型"""
+    """邀请码花币信息响应模型"""
 
     required_points: int
     current_points: float
@@ -48,13 +48,13 @@ class CheckPrivilegedCodeResponse(BaseModel):
 
 
 class RedeemForCreditsRequest(BaseModel):
-    """邀请码兑换积分请求模型"""
+    """邀请码兑换花币请求模型"""
 
     code: str
 
 
 class RedeemForCreditsResponse(BaseModel):
-    """邀请码兑换积分响应模型"""
+    """邀请码兑换花币响应模型"""
 
     success: bool
     message: str

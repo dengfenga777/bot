@@ -16,13 +16,58 @@ class DB:
     def __init__(self, db=settings.DATA_PATH / "data.db"):
         self.con = sqlite3.connect(db)
         self.cur = self.con.cursor()
-        # self.create_table()
+        # Ensure tables exist
+        self.create_table()
+
+    def ensure_checkin_table(self):
+        try:
+            self.cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_checkin (
+                    tg_id INTEGER PRIMARY KEY,
+                    last_date TEXT
+                )
+                """
+            )
+            self.con.commit()
+        except Exception as e:
+            logger.error(f"Ensure checkin table failed: {e}")
+
+    def get_last_checkin_date(self, tg_id: int) -> Optional[str]:
+        try:
+            self.ensure_checkin_table()
+            rs = self.cur.execute(
+                "SELECT last_date FROM user_checkin WHERE tg_id=?", (tg_id,)
+            ).fetchone()
+            return rs[0] if rs else None
+        except Exception as e:
+            logger.error(f"get_last_checkin_date error: {e}")
+            return None
+
+    def set_last_checkin_date(self, tg_id: int, date_str: str) -> bool:
+        try:
+            self.ensure_checkin_table()
+            if self.get_last_checkin_date(tg_id) is None:
+                self.cur.execute(
+                    "INSERT INTO user_checkin (tg_id, last_date) VALUES (?, ?)",
+                    (tg_id, date_str),
+                )
+            else:
+                self.cur.execute(
+                    "UPDATE user_checkin SET last_date=? WHERE tg_id=?",
+                    (date_str, tg_id),
+                )
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"set_last_checkin_date error: {e}")
+            return False
 
     def create_table(self):
         try:
             self.cur.executescript(
                 """
-                CREATE TABLE user(
+                CREATE TABLE IF NOT EXISTS user(
                     plex_id,
                     tg_id,
                     credits,
@@ -36,23 +81,23 @@ class DB:
                     premium_expiry_time
                 );
 
-                CREATE TABLE invitation(
+                CREATE TABLE IF NOT EXISTS invitation(
                     code, owner, is_used, userd_by
                 );
 
-                CREATE TABLE statistics(
+                CREATE TABLE IF NOT EXISTS statistics(
                     tg_id, donation, credits
                 );
 
-                CREATE TABLE emby_user(
+                CREATE TABLE IF NOT EXISTS emby_user(
                     emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line, is_premium, premium_expiry_time
                 );
 
-                CREATE TABLE overseerr(
+                CREATE TABLE IF NOT EXISTS overseerr(
                     user_id, user_email, tg_id
                 );
 
-                CREATE TABLE wheel_stats(
+                CREATE TABLE IF NOT EXISTS wheel_stats(
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tg_id INTEGER,
                     item_name TEXT,
@@ -61,7 +106,7 @@ class DB:
                     date TEXT
                 );
 
-                CREATE TABLE auctions(
+                CREATE TABLE IF NOT EXISTS auctions(
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL,
                     description TEXT NOT NULL,
@@ -75,7 +120,7 @@ class DB:
                     bid_count INTEGER DEFAULT 0
                 );
 
-                CREATE TABLE auction_bids(
+                CREATE TABLE IF NOT EXISTS auction_bids(
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     auction_id INTEGER NOT NULL,
                     bidder_id INTEGER NOT NULL,
@@ -84,7 +129,7 @@ class DB:
                     FOREIGN KEY (auction_id) REFERENCES auctions (id)
                 );
 
-                CREATE TABLE line_traffic_stats(
+                CREATE TABLE IF NOT EXISTS line_traffic_stats(
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     line TEXT NOT NULL,
                     send_bytes INTEGER NOT NULL,
@@ -96,7 +141,7 @@ class DB:
                 """
             )
         except sqlite3.OperationalError:
-            logger.warning("Table user is created already, skip...")
+            logger.warning("Tables may already exist; skipping creation.")
         else:
             self.con.commit()
 
@@ -273,7 +318,7 @@ class DB:
             return False, f"未找到用户: {tg_id}"
         except Exception as e:
             logger.error(f"Error: {e}")
-            return False, "获取积分失败"
+            return False, f"获取{settings.MONEY_NAME}失败"
 
     def update_user_donation(self, donation: int, tg_id):
         """Update user's donation"""
@@ -290,8 +335,9 @@ class DB:
 
     def update_invitation_status(self, code, used_by):
         try:
+            # 注意：表结构列名为 userd_by（历史命名），这里使用该列名更新
             self.cur.execute(
-                "UPDATE invitation SET is_used=?,used_by=? WHERE code=?",
+                "UPDATE invitation SET is_used=?,userd_by=? WHERE code=?",
                 (1, used_by, code),
             )
         except Exception as e:
@@ -299,7 +345,7 @@ class DB:
             return False
         else:
             self.con.commit()
-        return True
+            return True
 
     def update_all_lib_flag(
         self,

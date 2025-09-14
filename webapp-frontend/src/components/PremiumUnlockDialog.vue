@@ -69,7 +69,7 @@
             </div>
           </v-alert>
 
-          <!-- 当前积分显示 -->
+          <!-- 当前花币显示 -->
           <v-card
             class="credits-card mb-4"
             elevation="3"
@@ -78,10 +78,10 @@
             <div class="credits-background"></div>
             <v-card-text class="text-center pa-4 position-relative d-flex flex-column justify-center align-center">
               <v-icon size="24" color="amber-darken-2" class="mb-1">mdi-coins</v-icon>
-              <div class="text-caption text-medium-emphasis mb-1">当前可用积分</div>
+              <div class="text-caption text-medium-emphasis mb-1">当前可用花币</div>
               <div class="credits-amount">
                 <span class="credits-number">{{ currentCredits.toFixed(2) }}</span>
-                <span class="credits-unit">积分</span>
+                <span class="credits-unit">花币</span>
               </div>
             </v-card-text>
           </v-card>
@@ -130,14 +130,14 @@
                 </div>
                 <div class="cost-item">
                   <span class="cost-label">单日价格</span>
-                  <span class="cost-value">{{ dailyPrice }} 积分</span>
+                  <span class="cost-value">{{ dailyPrice }} 花币</span>
                 </div>
                 <v-divider class="my-2"></v-divider>
                 <div class="total-cost">
                   <span class="total-label">总费用</span>
                   <div class="total-value">
                     <span class="total-number">{{ totalCost }}</span>
-                    <span class="total-unit">积分</span>
+                    <span class="total-unit">花币</span>
                   </div>
                 </div>
               </div>
@@ -405,7 +405,7 @@ export default {
           if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.showPopup({
               title: '解锁成功',
-              message: `成功解锁 ${this.selectedDays} 天Premium会员，消耗 ${this.totalCost} 积分`
+              message: `成功解锁 ${this.selectedDays} 天Premium会员，消耗 ${this.totalCost} 花币`
             })
           }
           
@@ -591,7 +591,7 @@ export default {
   justify-content: center;
 }
 
-/* 积分卡片 */
+/* 花币卡片 */
 .credits-card {
   position: relative;
   overflow: hidden;

@@ -3,7 +3,7 @@
     <v-card>
       <v-card-title>
         <v-icon start color="amber-darken-2">mdi-bank-transfer</v-icon>
-        积分转移
+        花币转移
       </v-card-title>
       
       <v-card-text>
@@ -23,14 +23,14 @@
             每笔转移将收取 5% 手续费，转移对象不可以是自己
           </v-alert>
 
-          <!-- 当前积分显示 -->
+          <!-- 当前花币显示 -->
           <v-card
             variant="outlined"
             class="mb-4"
             rounded="lg"
           >
             <v-card-text class="text-center">
-              <div class="text-caption text-medium-emphasis">当前可用积分</div>
+              <div class="text-caption text-medium-emphasis">当前可用花币</div>
               <div class="text-h5 font-weight-bold text-primary">
                 {{ currentCredits.toFixed(2) }}
               </div>
@@ -68,17 +68,17 @@
                 <v-list-item-subtitle>
                   ID: {{ item.raw.tg_id }}
                   <span v-if="item.raw.current_credits > 0">
-                    · 当前积分: {{ item.raw.current_credits.toFixed(2) }}
+                    · 当前花币: {{ item.raw.current_credits.toFixed(2) }}
                   </span>
                 </v-list-item-subtitle>
               </v-list-item>
             </template>
           </v-autocomplete>
           
-          <!-- 转移积分数量输入 -->
+          <!-- 转移花币数量输入 -->
           <v-text-field
             v-model="transferAmount"
-            label="转移积分数量"
+            label="转移花币数量"
             type="number"
             min="0"
             step="0.01"
@@ -99,7 +99,7 @@
           >
             <v-card-text class="py-3">
               <div class="d-flex justify-space-between align-center mb-2">
-                <span class="text-body-2">转移积分：</span>
+                <span class="text-body-2">转移花币：</span>
                 <span class="font-weight-medium">{{ parseFloat(transferAmount).toFixed(2) }}</span>
               </div>
               <div class="d-flex justify-space-between align-center mb-2">
@@ -189,10 +189,10 @@ export default {
         () => !!this.selectedUser || '请选择转移对象'
       ],
       amountRules: [
-        v => !!v || '请输入转移积分数量',
-        v => !isNaN(parseFloat(v)) && parseFloat(v) > 0 || '请输入有效的积分数量',
-        v => parseFloat(v) <= 10000 || '单次转移积分不能超过10000',
-        () => this.totalDeduction <= this.currentCredits || '积分不足（包含手续费）'
+        v => !!v || '请输入转移花币数量',
+        v => !isNaN(parseFloat(v)) && parseFloat(v) > 0 || '请输入有效的花币数量',
+        v => parseFloat(v) <= 10000 || '单次转移花币不能超过10000',
+        () => this.totalDeduction <= this.currentCredits || '花币不足（包含手续费）'
       ]
     }
   },
@@ -271,13 +271,13 @@ export default {
         const result = await transferCredits(transferData)
         
         if (result.success) {
-          this.successMessage = result.message || '积分转移成功'
+          this.successMessage = result.message || '花币转移成功'
           
           // 显示成功提示
           if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.showPopup({
               title: '转移成功',
-              message: `成功转移 ${result.transferred_amount} 积分，手续费 ${result.fee_amount?.toFixed(2)} 积分`
+              message: `成功转移 ${result.transferred_amount} 花币，手续费 ${result.fee_amount?.toFixed(2)} 花币`
             })
           }
           
@@ -297,7 +297,7 @@ export default {
         }
       } catch (error) {
         this.errorMessage = error.response?.data?.message || '转移失败，请稍后再试'
-        console.error('积分转移失败:', error)
+        console.error('花币转移失败:', error)
       } finally {
         this.processing = false
       }

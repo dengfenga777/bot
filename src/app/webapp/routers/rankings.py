@@ -19,14 +19,14 @@ router = APIRouter(prefix="/api", tags=["rankings"])
 async def get_credits_rankings(
     request: Request, user: TelegramUser = Depends(get_telegram_user)
 ):
-    """获取积分排行榜数据"""
-    logger.info(f"{user.username or user.first_name or user.id} 开始获取积分排行榜数据")
+    """获取花币排行榜数据"""
+    logger.info(f"{user.username or user.first_name or user.id} 开始获取花币排行榜数据")
 
     db = DB()
     try:
         credits_rankings = []
         try:
-            logger.debug("正在查询积分排行")
+            logger.debug("正在查询花币排行")
             credits_data = db.get_credits_rank()
             if credits_data:
                 credits_rankings = [
@@ -40,15 +40,15 @@ async def get_credits_rankings(
                     if info[1] > 0 and info[0] not in settings.ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取积分排行失败: {str(e)}")
+            logger.error(f"获取花币排行失败: {str(e)}")
 
         logger.info(
-            f"{user.username or user.first_name or user.id} 获取积分排行榜数据成功"
+            f"{user.username or user.first_name or user.id} 获取花币排行榜数据成功"
         )
         return {"credits_rank": credits_rankings}
     except Exception as e:
-        logger.error(f"获取积分排行榜数据时发生未预期的错误: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取积分排行榜数据失败")
+        logger.error(f"获取花币排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取花币排行榜数据失败")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
@@ -184,6 +184,105 @@ async def get_emby_watched_time_rankings(
     except Exception as e:
         logger.error(f"获取Emby观看时长排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取Emby观看时长排行榜数据失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.get("/rankings/watched-time/combined")
+@require_telegram_auth
+async def get_combined_watched_time_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取 Plex+Emby 合并观看时长排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取合并观看时长排行榜数据"
+    )
+
+    db = DB()
+    try:
+        watched_time_rank_combined = []
+        emby = Emby()
+        try:
+            logger.debug("正在查询 Plex 与 Emby 播放时长并进行合并")
+            plex_rows = db.get_plex_watched_time_rank()
+            emby_rows = db.get_emby_watched_time_rank()
+
+            totals = {}
+
+            def add_total(key, payload):
+                if key not in totals:
+                    totals[key] = {"hours": 0.0, **payload}
+                totals[key]["hours"] += float(payload.get("hours") or 0)
+
+            # 聚合 Plex
+            for row in plex_rows:
+                plex_id, tg_id, plex_username, watched_time, _is_premium = row
+                key = tg_id if tg_id is not None else f"plex::{plex_username}"
+                add_total(
+                    key,
+                    {
+                        "tg_id": tg_id,
+                        "platform": "plex" if tg_id is None else "telegram",
+                        "name_hint": plex_username,
+                        "hours": watched_time,
+                    },
+                )
+
+            # 聚合 Emby
+            for row in emby_rows:
+                emby_id, emby_username, emby_watched_time, _is_premium, tg_id = row
+                key = tg_id if tg_id is not None else f"emby::{emby_username}"
+                add_total(
+                    key,
+                    {
+                        "tg_id": tg_id,
+                        "platform": "emby" if tg_id is None else "telegram",
+                        "name_hint": emby_username,
+                        "hours": emby_watched_time,
+                    },
+                )
+
+            # 生成输出
+            for key, info in totals.items():
+                if info["hours"] <= 0:
+                    continue
+                if isinstance(key, int):
+                    name = get_user_name_from_tg_id(key)
+                    avatar = get_user_avatar_from_tg_id(key)
+                    is_self = key == user.id
+                else:
+                    name = info.get("name_hint")
+                    # 根据来源选择头像
+                    if str(key).startswith("plex::"):
+                        avatar = Plex.get_user_avatar_by_username(name)
+                    else:
+                        avatar = emby.get_user_avatar_by_username(name, from_emby=False)
+                    is_self = False
+
+                watched_time_rank_combined.append(
+                    {
+                        "name": name,
+                        "watched_time": info["hours"],
+                        "avatar": avatar,
+                        "is_self": is_self,
+                    }
+                )
+
+            watched_time_rank_combined = sorted(
+                watched_time_rank_combined, key=lambda x: x["watched_time"], reverse=True
+            )
+
+        except Exception as e:
+            logger.error(f"获取合并观看时长排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取合并观看时长排行榜数据成功"
+        )
+        return {"watched_time_rank_combined": watched_time_rank_combined}
+    except Exception as e:
+        logger.error(f"获取合并观看时长排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取合并观看时长排行榜数据失败")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")

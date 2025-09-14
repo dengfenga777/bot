@@ -2,8 +2,8 @@
   <div class="user-info-container">
     <div class="content-wrapper">
       <div class="user-info-header">
-        <h1 class="page-title">FunMedia 用户中心</h1>
-        <p class="page-subtitle">账户信息与服务管理</p>
+        <h1 class="page-title">Misaya 用户中心</h1>
+        <p class="page-subtitle">Misaya 账户中心</p>
       </div>
       
       <v-container class="transparent-container">
@@ -39,7 +39,7 @@
             <div class="d-flex justify-space-between mb-3 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="primary" class="mr-2">mdi-star-circle</v-icon>
-                <span>可用积分：</span>
+                <span>可用花币：</span>
               </div>
               <div class="d-flex">
                 <v-btn
@@ -48,7 +48,7 @@
                   :color="creditsTransferEnabled ? 'amber-darken-2' : 'grey'"
                   variant="outlined"
                   @click="handleCreditsTransferClick"
-                  :title="creditsTransferEnabled ? '积分转移' : '积分转移功能暂时关闭'"
+                  :title="creditsTransferEnabled ? '花币转移' : '花币转移功能暂时关闭'"
                   class="mr-2 credits-transfer-btn"
                   :class="{ 'disabled-style': !creditsTransferEnabled }"
                 >
@@ -115,10 +115,10 @@
                     :loading="redeemingCodes[index]"
                     :disabled="redeemingCodes[index]"
                     class="redeem-button-horizontal"
-                    title="兑换为积分"
+                    title="兑换为花币"
                   >
                     <v-icon size="small" start>mdi-star</v-icon>
-                    兑换积分
+                    兑换花币
                   </v-btn>
                 </div>
               </div>
@@ -450,7 +450,7 @@
                       <span class="stat-value today-value">{{ activityStats.today_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">积分变化</span>
+                      <span class="stat-label">花币变化</span>
                       <span 
                         class="stat-value today-value"
                         :class="activityStats.today_credits_change >= 0 ? 'positive' : 'negative'"
@@ -477,7 +477,7 @@
                       <span class="stat-value week-value">{{ activityStats.week_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">积分变化</span>
+                      <span class="stat-label">花币变化</span>
                       <span 
                         class="stat-value week-value"
                         :class="activityStats.week_credits_change >= 0 ? 'positive' : 'negative'"
@@ -504,7 +504,7 @@
                       <span class="stat-value total-value">{{ activityStats.total_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">积分变化</span>
+                      <span class="stat-label">花币变化</span>
                       <span 
                         class="stat-value total-value"
                         :class="activityStats.total_credits_change >= 0 ? 'positive' : 'negative'"
@@ -661,7 +661,7 @@
       @donation-submitted="handleDonationSubmitted"
     />
     
-    <!-- 使用积分转移对话框组件 -->
+    <!-- 使用花币转移对话框组件 -->
     <credits-transfer-dialog
       ref="creditsTransferDialog"
       :current-credits="userInfo.credits"
@@ -763,7 +763,7 @@ export default {
           channel: ''
         }
       },
-      creditsTransferEnabled: true, // 积分转移功能开关状态
+      creditsTransferEnabled: true, // 花币转移功能开关状态
       currentPremiumExpiry: null,
       currentIsPremium: false
     }
@@ -771,7 +771,7 @@ export default {
   mounted() {
     this.fetchUserInfo()
     this.fetchActivityStats()
-    this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
+    this.fetchSystemStatus() // 这里会同时获取系统状态和花币转移开关状态
   },
   methods: {
     // 格式化流量显示
@@ -819,7 +819,7 @@ export default {
       try {
         const response = await getSystemStatus()
         this.systemStatus = response
-        // 同时获取积分转移开关状态
+        // 同时获取花币转移开关状态
         this.creditsTransferEnabled = response.credits_transfer_enabled !== undefined ? 
           response.credits_transfer_enabled : true
       } catch (err) {
@@ -871,12 +871,12 @@ export default {
       })
     },
 
-    // 兑换邀请码为积分
+    // 兑换邀请码为花币
     async redeemCodeForCredits(code, index) {
       // 显示确认提示框
       const confirmed = await this.showConfirmDialog(
         '确认兑换',
-        `确定要兑换邀请码 "${code}" 为积分吗？\n\n兑换后将获得该邀请码价值 80% 的积分，且邀请码将被消耗。`
+        `确定要兑换邀请码 "${code}" 为花币吗？\n\n兑换后将获得该邀请码价值 80% 的花币，且邀请码将被消耗。`
       );
 
       if (!confirmed) {
@@ -890,7 +890,7 @@ export default {
         const response = await redeemInviteCodeForCredits(code);
         
         if (response.success) {
-          // 更新用户积分
+          // 更新用户花币
           this.userInfo.credits = response.current_credits;
           
           // 从邀请码列表中移除已兑换的邀请码
@@ -924,7 +924,7 @@ export default {
           this.redeemingCodes = newRedeemingCodes;
           
           // 显示成功消息
-          const message = `成功兑换！获得 ${response.credits_earned.toFixed(2)} 积分`;
+          const message = `成功兑换！获得 ${response.credits_earned.toFixed(2)} 花币`;
           this.showMessage(message, 'success');
           
           if (window.Telegram?.WebApp) {
@@ -993,7 +993,7 @@ export default {
         this.userInfo.emby_info.all_lib = isUnlock;
       }
       
-      // 更新用户积分
+      // 更新用户花币
       this.userInfo.credits -= cost;
     },
     // 使用导入的方法获取观看等级图标
@@ -1025,11 +1025,11 @@ export default {
       this.$refs.donationDialog.open();
     },
     
-    // 处理积分转移按钮点击事件
+    // 处理花币转移按钮点击事件
     handleCreditsTransferClick() {
       if (!this.creditsTransferEnabled) {
         // 功能关闭时显示提示
-        this.showMessage('积分转移功能暂时关闭', 'error')
+        this.showMessage('花币转移功能暂时关闭', 'error')
         return
       }
       
@@ -1037,20 +1037,20 @@ export default {
       this.openCreditsTransferDialog()
     },
     
-    // 打开积分转移对话框
+    // 打开花币转移对话框
     openCreditsTransferDialog() {
       this.$refs.creditsTransferDialog.open();
     },
     
-    // 处理积分转移完成事件
+    // 处理花币转移完成事件
     handleCreditsTransferCompleted(result) {
       const { amount, target_user, current_credits } = result;
       
-      // 更新用户积分
+      // 更新用户花币
       this.userInfo.credits = current_credits;
       
       // 显示成功消息
-      this.showMessage(`成功转移 ${amount} 积分给用户 ${target_user}`, 'success');
+      this.showMessage(`成功转移 ${amount} 花币给用户 ${target_user}`, 'success');
     },
     
     // 处理捐赠提交事件
@@ -1085,7 +1085,7 @@ export default {
     handlePremiumUnlockCompleted(result) {
       const { service, days, cost, current_credits, premium_expiry } = result;
       
-      // 更新用户积分
+      // 更新用户花币
       this.userInfo.credits = current_credits;
       
       // 更新Premium状态和到期时间
@@ -1097,7 +1097,7 @@ export default {
         this.userInfo.emby_info.premium_expiry = premium_expiry;
       }
 
-      this.showMessage(`成功解锁 ${days} 天 Premium 会员，消耗 ${cost} 积分`);
+      this.showMessage(`成功解锁 ${days} 天 Premium 会员，消耗 ${cost} 花币`);
     },
 
     // 格式化Premium到期时间
@@ -1742,7 +1742,7 @@ export default {
   opacity: 0.6;
 }
 
-/* 积分转移按钮样式 */
+/* 花币转移按钮样式 */
 .credits-transfer-btn {
   transition: all 0.3s ease;
   position: relative;

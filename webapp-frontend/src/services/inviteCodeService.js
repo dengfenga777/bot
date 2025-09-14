@@ -4,8 +4,8 @@
 import { apiClient } from '../main';
 
 /**
- * 获取生成邀请码所需的积分信息
- * @returns {Promise} 包含所需积分和当前积分的Promise对象
+ * 获取生成邀请码所需的花币信息
+ * @returns {Promise} 包含所需花币和当前花币的Promise对象
  */
 export function getInvitePointsInfo() {
   return new Promise((resolve, reject) => {
@@ -21,7 +21,7 @@ export function getInvitePointsInfo() {
           });
         })
         .catch(error => {
-          console.error('获取邀请码积分信息失败:', error);
+         console.error('获取邀请码花币信息失败:', error);
           reject(error);
         });
     } else {
@@ -70,7 +70,7 @@ export function generateInviteCode() {
 }
 
 /**
- * 将邀请码兑换为积分
+ * 将邀请码兑换为花币
  * @param {string} code - 邀请码
  * @returns {Promise} 包含兑换结果的Promise对象
  */
@@ -93,7 +93,7 @@ export function redeemInviteCodeForCredits(code) {
           });
         })
         .catch(error => {
-          console.error('邀请码兑换积分失败:', error);
+         console.error('邀请码兑换花币失败:', error);
           reject(error);
         });
     } else {
@@ -102,7 +102,7 @@ export function redeemInviteCodeForCredits(code) {
         // 模拟成功响应
         resolve({
           success: true,
-          message: '邀请码兑换成功！获得 288 积分',
+          message: '邀请码兑换成功！获得 288 花币',
           credits_earned: 288,
           current_credits: 1788
         });

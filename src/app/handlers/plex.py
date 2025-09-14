@@ -6,7 +6,6 @@ from app.log import logger
 from app.plex import Plex
 from app.tautulli import Tautulli
 from app.utils import (
-    caculate_credits_fund,
     get_user_name_from_tg_id,
     get_user_total_duration,
     send_message,
@@ -74,27 +73,23 @@ async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         _db.update_user_credits(0, plex_id=plex_info[0])
     else:
         plex_username = _plex.get_username_by_user_id(plex_id)
-        plex_cur_libs = _plex.get_user_shared_libs_by_id(plex_id)
-        plex_all_lib = (
-            1 if not set(_plex.get_libraries()).difference(set(plex_cur_libs)) else 0
-        )
-        # 初始化积分
         try:
-            user_total_duration = get_user_total_duration(
-                Tautulli().get_home_stats(
-                    1365, "duration", len(_plex.users_by_id), stat_id="top_users"
-                )
+            plex_cur_libs = _plex.get_user_shared_libs_by_id(plex_id)
+        except Exception:
+            # 容错：无法查询共享库时，按未全部授权处理，但不阻塞绑定
+            logger.warning("Plex: 查询共享库失败，按未全部授权处理")
+            plex_cur_libs = []
+        plex_all_lib = 1 if not set(_plex.get_libraries()).difference(set(plex_cur_libs)) else 0
+        # 初始化花币
+        try:
+            stats = Tautulli().get_home_stats(
+                1365, "duration", len(_plex.users_by_id), stat_id="top_users"
             )
+            user_total_duration = get_user_total_duration(stats)
+            plex_credits = user_total_duration.get(plex_id, 0)
         except Exception as e:
-            _db.close()
-            logger.error("Error: ", e)
-            await send_message(
-                chat_id=chat_id,
-                text="错误：获取用户观看时长失败，请联系管理员 @WithdewHua",
-                context=context,
-            )
-            return
-        plex_credits = user_total_duration.get(plex_id, 0)
+            logger.warning(f"Tautulli 获取观看时长失败，默认记 0：{e}")
+            plex_credits = 0
         # 写入数据库
         rslt = _db.add_plex_user(
             plex_id=plex_id,
@@ -130,6 +125,26 @@ async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         context=context,
     )
 
+
+async def unbind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """解绑当前 Telegram 用户与其 Plex 账户的绑定"""
+    chat_id = update.effective_chat.id
+    db = DB()
+    try:
+        info = db.get_plex_info_by_tg_id(chat_id)
+        if not info:
+            await send_message(chat_id=chat_id, text="错误：未绑定 Plex 账户", context=context)
+            return
+        plex_id = info[0]
+        plex_username = info[4]
+        ok = db.update_user_tg_id(None, plex_id=plex_id)
+        if not ok:
+            await send_message(chat_id=chat_id, text="错误：数据库操作失败，请稍后重试", context=context)
+            return
+        db.set_plex_line(None, tg_id=chat_id)
+        await send_message(chat_id=chat_id, text=f"信息：已解绑 Plex 账户 {plex_username}", context=context)
+    finally:
+        db.close()
 
 # 用户兑换邀请码
 async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -208,139 +223,14 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 # 解锁 nsfw 库权限
-async def unlock_nsfw_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update._effective_chat.id
-    _db = DB()
-    _info = _db.get_plex_info_by_tg_id(chat_id)
-    if not _info:
-        await send_message(
-            chat_id=chat_id, text="错误: 未查询到用户, 请先绑定", context=context
-        )
-        _db.close()
-        return
-    # 用户数据
-    _stats_info = _db.get_stats_by_tg_id(chat_id)
-    _plex_id = _info[0]
-    _credits = _stats_info[2]
-    _all_lib = _info[5]
-    if _all_lib == 1:
-        _db.close()
-        await send_message(
-            chat_id=chat_id, text="错误: 您已拥有全部库权限, 无需解锁", context=context
-        )
-        return
-    if _credits < settings.UNLOCK_CREDITS:
-        await send_message(
-            chat_id=chat_id, text="错误: 您的积分不足, 解锁失败", context=context
-        )
-        _db.close()
-        return
-    _credits -= settings.UNLOCK_CREDITS
-    _plex = Plex()
-    # 更新权限
-    try:
-        _plex.update_user_shared_libs(_plex_id, _plex.get_libraries())
-    except Exception:
-        await send_message(
-            chat_id=chat_id, text="错误: 更新权限失败, 请联系管理员", context=context
-        )
-        _db.close()
-        return
-    # 解锁权限的时间
-    unlock_time = time()
-    # 更新数据库
-    res = _db.update_user_credits(_credits, tg_id=chat_id)
-    if not res:
-        _db.close()
-        await send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
-        )
-        return
-    res = _db.update_all_lib_flag(all_lib=1, unlock_time=unlock_time, plex_id=_plex_id)
-    if not res:
-        _db.close()
-        await send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
-        )
-        return
-    _db.close()
-    await send_message(
-        chat_id=chat_id, text="信息: 解锁成功, 请尽情享受", context=context
-    )
-
-
-# 锁定 NSFW 权限
-async def lock_nsfw_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update._effective_chat.id
-    _db = DB()
-    _info = _db.get_plex_info_by_tg_id(chat_id)
-    if not _info:
-        await send_message(
-            chat_id=chat_id, text="错误: 未查询到用户, 请先绑定", context=context
-        )
-        _db.close()
-        return
-    _stats_info = _db.get_stats_by_tg_id(chat_id)
-    _plex_id = _info[0]
-    _credits = _stats_info[2]
-    _all_lib = _info[5]
-    _unlock_time = _info[6]
-    if _all_lib == 0:
-        _db.close()
-        await send_message(
-            chat_id=chat_id, text="错误: 您未解锁 NSFW 内容", context=context
-        )
-        return
-    _credits_fund = caculate_credits_fund(_unlock_time, settings.UNLOCK_CREDITS)
-    _credits += _credits_fund
-    _plex = Plex()
-    # 更新权限
-    sections = _plex.get_libraries()
-    for section in settings.NSFW_LIBS:
-        sections.remove(section)
-    try:
-        _plex.update_user_shared_libs(_plex_id, sections)
-    except Exception:
-        await send_message(
-            chat_id=chat_id, text="错误: 更新权限失败, 请联系管理员", context=context
-        )
-        _db.close()
-        return
-    # 更新数据库
-    res = _db.update_user_credits(_credits, tg_id=chat_id)
-    if not res:
-        _db.close()
-        await send_message(
-            chat_id=chat_id,
-            text="错误: 数据库更新失败, 请联系管理员",
-            context=context,
-        )
-        return
-    res = _db.update_all_lib_flag(all_lib=0, unlock_time=None, plex_id=_plex_id)
-    if not res:
-        _db.close()
-        await send_message(
-            chat_id=chat_id,
-            text="错误: 数据库更新失败, 请联系管理员",
-            context=context,
-        )
-        return
-    _db.close()
-    await send_message(
-        chat_id=chat_id,
-        text=f"信息: 成功关闭 NSFW 内容, 退回积分 {_credits_fund}",
-        context=context,
-    )
 
 
 bind_plex_handler = CommandHandler("bind_plex", bind_plex)
-unlock_nsfw_plex_handler = CommandHandler("unlock_nsfw_plex", unlock_nsfw_plex)
-lock_nsfw_plex_handler = CommandHandler("lock_nsfw_plex", lock_nsfw_plex)
 redeem_plex_handler = CommandHandler("redeem_plex", redeem_plex)
+unbind_plex_handler = CommandHandler("unbind_plex", unbind_plex)
 
 __all__ = [
     "bind_plex_handler",
-    "unlock_nsfw_plex_handler",
-    "lock_nsfw_plex_handler",
     "redeem_plex_handler",
+    "unbind_plex_handler",
 ]

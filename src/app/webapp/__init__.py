@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi.responses import FileResponse
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -58,7 +59,15 @@ app.include_router(auction_router, prefix="/api")  # 添加竞拍活动路由
 
 def setup_static_files():
     """配置静态文件服务"""
-    static_dir = Path(settings.WEBAPP_STATIC_DIR).absolute()
+    # 兼容相对路径：相对于仓库根目录（src 的上一级）
+    static_dir_cfg = Path(settings.WEBAPP_STATIC_DIR)
+    if static_dir_cfg.is_absolute():
+        static_dir = static_dir_cfg
+    else:
+        # src/app/webapp/__init__.py -> repo_root = parents[3]
+        repo_root = Path(__file__).resolve().parents[3]
+        static_dir = (repo_root / static_dir_cfg).resolve()
+    logger.info(f"WebApp 静态目录: {static_dir}")
     if not static_dir.exists():
         logger.warning(f"WebApp 静态文件目录不存在: {static_dir}")
         return False
@@ -69,3 +78,12 @@ def setup_static_files():
     except Exception as e:
         logger.error(f"挂载 WebApp 静态文件失败: {e}")
         return False
+
+
+@app.get("/")
+async def serve_index():
+    """显式提供根路径的 index.html，避免某些环境下挂载优先级导致 404。"""
+    index = Path(settings.WEBAPP_STATIC_DIR).absolute() / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return {"detail": "Not Found"}

@@ -95,18 +95,31 @@ class Plex:
 
     def get_user_shared_libs_by_id(self, user_id) -> list:
         """get shared libraries with specified user by id"""
-        if self.get_username_by_user_id(user_id) == settings.PLEX_ADMIN_USER:
+        username = self.get_username_by_user_id(user_id)
+        if not username:
+            logger.warning(f"Plex: 无法根据ID找到用户: {user_id}")
+            return []
+        if username == settings.PLEX_ADMIN_USER:
             return self.get_libraries()
-        data = (
-            self.my_plex_account.user(user_id)
-            .server(self.plex_server_name)
-            ._server.query(
-                self.my_plex_account.FRIENDSERVERS.format(
-                    machineId=self.plex_server.machineIdentifier,
-                    serverId=self.my_plex_account.user(user_id)
-                    .server(self.plex_server_name)
-                    .id,
+        # plexapi 的 MyPlexAccount.user 接受用户名/邮箱，而不是数值ID
+        # 某些环境下 username 与 MyPlex 显示名不一致，尝试 username -> email 双重回退
+        try:
+            friend_account = self.my_plex_account.user(username)
+        except Exception:
+            # 找到该用户对象，使用 email 再试一次
+            user_obj = self.users_by_id.get(user_id, (None, None))[1]
+            if user_obj and getattr(user_obj, "email", None):
+                friend_account = self.my_plex_account.user(user_obj.email)
+            else:
+                logger.warning(
+                    f"Plex: 通过用户名和邮箱均无法定位好友账户: id={user_id}, username={username}"
                 )
+                return []
+        friend_server = friend_account.server(self.plex_server_name)
+        data = friend_server._server.query(
+            self.my_plex_account.FRIENDSERVERS.format(
+                machineId=self.plex_server.machineIdentifier,
+                serverId=friend_server.id,
             )
         )
         return [
@@ -118,22 +131,36 @@ class Plex:
 
     def verify_all_libraries(self, user_id) -> bool:
         """Verify if specified user has permission with all libraries"""
-        if self.get_username_by_user_id(user_id) == settings.PLEX_ADMIN_EMAIL:
+        username = self.get_username_by_user_id(user_id)
+        if not username:
+            return False
+        if username == settings.PLEX_ADMIN_USER:
             return True
-        return (
-            True
-            if self.my_plex_account.user(user_id)
-            .server(self.plex_server_name)
-            .numLibraries
-            == 6
-            else False
-        )
+        try:
+            return (
+                self.my_plex_account.user(username)
+                .server(self.plex_server_name)
+                .numLibraries
+                == len(self.get_libraries())
+            )
+        except Exception:
+            return False
 
     def update_user_shared_libs(self, user_id, libs: list):
         """update shared libraries with specified user by id"""
-        self.my_plex_account.updateFriend(
-            self.my_plex_account.user(user_id), self.plex_server, sections=libs
-        )
+        username = self.get_username_by_user_id(user_id)
+        if not username:
+            raise ValueError("Unknown Plex user id")
+        # 同上：尝试 username，失败回退 email
+        try:
+            friend = self.my_plex_account.user(username)
+        except Exception:
+            user_obj = self.users_by_id.get(user_id, (None, None))[1]
+            if user_obj and getattr(user_obj, "email", None):
+                friend = self.my_plex_account.user(user_obj.email)
+            else:
+                raise
+        self.my_plex_account.updateFriend(friend, self.plex_server, sections=libs)
 
     def invite_friend(self, user, libs=None):
         try:

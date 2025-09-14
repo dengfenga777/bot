@@ -36,7 +36,7 @@ async def get_invite_points_info(
     request: Request, telegram_user: TelegramUser = Depends(get_telegram_user)
 ):
     """
-    获取用户当前积分和生成邀请码所需的积分信息
+    获取用户当前花币和生成邀请码所需的花币信息
     """
     try:
         user_id = telegram_user.id
@@ -52,18 +52,18 @@ async def get_invite_points_info(
                 detail="用户未绑定 Plex/Emby 账户",
             )
 
-        # 获取用户当前积分
+        # 获取用户当前花币
         user_credits = stats_info[2]
 
-        # 获取邀请码所需积分
+        # 获取邀请码所需花币
         required_points = settings.INVITATION_CREDITS
 
-        # 判断用户是否有足够的积分
+        # 判断用户是否有足够的花币
         can_generate = user_credits >= required_points
         error_message = None
 
         if not can_generate:
-            error_message = "积分不足，无法生成邀请码"
+            error_message = "花币不足，无法生成邀请码"
 
         return InvitePointsResponse(
             required_points=required_points,
@@ -73,10 +73,10 @@ async def get_invite_points_info(
         )
 
     except Exception as e:
-        logger.error(f"获取邀请码积分信息失败: {str(e)}")
+        logger.error(f"获取邀请码花币信息失败: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取邀请码积分信息失败",
+            detail="获取邀请码花币信息失败",
         )
     finally:
         _db.close()
@@ -89,7 +89,7 @@ async def generate_invite_code(
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """
-    生成新的邀请码，消耗用户积分
+    生成新的邀请码，消耗用户花币
     """
     try:
         user_id = telegram_user.id
@@ -105,20 +105,20 @@ async def generate_invite_code(
                 detail="用户未绑定 Plex/Emby 账户",
             )
 
-        # 获取用户当前积分
+        # 获取用户当前花币
         user_credits = stats_info[2]
 
-        # 获取邀请码所需积分
+        # 获取邀请码所需花币
         required_points = settings.INVITATION_CREDITS
 
-        # 检查剩余积分
+        # 检查剩余花币
         if user_credits < required_points:
             return GenerateInviteCodeResponse(
                 success=False,
-                message=f"积分不足，您当前积分 {user_credits}，需要 {required_points} 积分才能生成邀请码",
+                message=f"花币不足，您当前花币 {user_credits}，需要 {required_points} 花币才能生成邀请码",
             )
 
-        # 减去积分
+        # 减去花币
         new_credits = user_credits - required_points
 
         # 生成邀请码
@@ -131,18 +131,18 @@ async def generate_invite_code(
                 success=False, message="生成邀请码失败，请稍后再试"
             )
 
-        # 然后更新积分
+        # 然后更新花币
         res = _db.update_user_credits(new_credits, tg_id=user_id)
         if not res:
-            # 如果更新积分失败，需要回滚邀请码
+            # 如果更新花币失败，需要回滚邀请码
             # 实际应用中应该有更完善的事务处理
             return GenerateInviteCodeResponse(
-                success=False, message="更新积分失败，请稍后再试"
+                success=False, message="更新花币失败，请稍后再试"
             )
 
         return GenerateInviteCodeResponse(
             success=True,
-            message=f"邀请码生成成功！已消耗 {required_points} 积分",
+            message=f"邀请码生成成功！已消耗 {required_points} 花币",
             code=invite_code,
         )
 
@@ -365,7 +365,7 @@ async def redeem_invite_code_for_credits(
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """
-    将邀请码兑换为积分
+    将邀请码兑换为花币
     """
     try:
         user_id = telegram_user.id
@@ -382,7 +382,7 @@ async def redeem_invite_code_for_credits(
             if res[0]:  # is_used = True
                 return RedeemForCreditsResponse(success=False, message="邀请码已被使用")
             code_owner = res[1]
-            # 获取用户当前积分
+            # 获取用户当前花币
             stats_info = _db.get_stats_by_tg_id(user_id)
             if not stats_info:
                 return RedeemForCreditsResponse(
@@ -391,15 +391,15 @@ async def redeem_invite_code_for_credits(
 
             current_credits = stats_info[2]
 
-            # 计算可获得的积分 (通常是生成邀请码所需积分的一半或某个比例)
+            # 计算可获得的花币 (通常是生成邀请码所需花币的一半或某个比例)
             credits_earned = settings.INVITATION_CREDITS * 0.8  # 80%的回收率
 
-            # 更新积分
+            # 更新花币
             new_credits = current_credits + credits_earned
             res = _db.update_user_credits(new_credits, tg_id=user_id)
             if not res:
                 return RedeemForCreditsResponse(
-                    success=False, message="更新积分失败，请稍后再试"
+                    success=False, message="更新花币失败，请稍后再试"
                 )
 
             # 标记邀请码为已使用
@@ -407,19 +407,19 @@ async def redeem_invite_code_for_credits(
                 code=code, used_by=f"credits_by_{user_id}"
             )
             if not res:
-                # 如果标记失败，需要回滚积分
+                # 如果标记失败，需要回滚花币
                 _db.update_user_credits(current_credits, tg_id=user_id)
                 return RedeemForCreditsResponse(
                     success=False, message="更新邀请码状态失败，请联系管理员"
                 )
 
             logger.info(
-                f"用户 {get_user_name_from_tg_id(user_id)} 成功将邀请码 {code} ({get_user_name_from_tg_id(code_owner)}) 兑换为 {credits_earned} 积分"
+                f"用户 {get_user_name_from_tg_id(user_id)} 成功将邀请码 {code} ({get_user_name_from_tg_id(code_owner)}) 兑换为 {credits_earned} 花币"
             )
 
             return RedeemForCreditsResponse(
                 success=True,
-                message=f"成功兑换 {credits_earned} 积分！",
+                message=f"成功兑换 {credits_earned} 花币！",
                 credits_earned=credits_earned,
                 current_credits=new_credits,
             )
@@ -428,7 +428,7 @@ async def redeem_invite_code_for_credits(
             _db.close()
 
     except Exception as e:
-        logger.error(f"邀请码兑换积分失败: {str(e)}")
+        logger.error(f"邀请码兑换花币失败: {str(e)}")
         return RedeemForCreditsResponse(
             success=False, message="兑换过程出错，请稍后再试"
         )

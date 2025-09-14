@@ -14,8 +14,8 @@ class LuckyWheelConfig(BaseModel):
     """幸运大转盘配置"""
 
     items: List[LuckyWheelItem] = Field(..., description="转盘奖品列表")
-    cost_credits: int = Field(default=10, ge=1, description="参与转盘需要的积分")
-    min_credits_required: int = Field(default=30, ge=1, description="最低积分要求")
+    cost_credits: int = Field(default=10, ge=1, description="参与转盘需要的花币")
+    min_credits_required: int = Field(default=30, ge=1, description="最低花币要求")
     gen_privileged_code: bool = Field(default=False, description="是否生成特权邀请码")
 
 
@@ -29,14 +29,14 @@ class LuckyWheelSpinResult(BaseModel):
     """转盘旋转结果"""
 
     item: LuckyWheelItem = Field(..., description="中奖奖品")
-    credits_change: float = Field(..., description="积分变化（正数为增加，负数为减少）")
-    current_credits: float = Field(..., description="当前剩余积分")
+    credits_change: float = Field(..., description="花币变化（正数为增加，负数为减少）")
+    current_credits: float = Field(..., description="当前剩余花币")
 
 
 class LuckyWheelConfigUpdateRequest(BaseModel):
     """更新转盘配置请求"""
 
     items: List[LuckyWheelItem] = Field(..., description="转盘奖品列表")
-    cost_credits: Optional[int] = Field(None, ge=1, description="参与转盘需要的积分")
-    min_credits_required: Optional[int] = Field(None, ge=1, description="最低积分要求")
+    cost_credits: Optional[int] = Field(None, ge=1, description="参与转盘需要的花币")
+    min_credits_required: Optional[int] = Field(None, ge=1, description="最低花币要求")
     gen_privileged_code: bool = Field(default=False, description="是否生成特权邀请码")

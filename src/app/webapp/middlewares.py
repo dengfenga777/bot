@@ -1,4 +1,5 @@
 from functools import wraps
+import json
 
 from app.log import logger
 from app.webapp.auth import verify_telegram_data
@@ -18,7 +19,34 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
         logger.debug(f"{init_data=}")
 
         if not init_data:
-            # 如果请求不包含 initData，可能是公开API或静态资源请求，正常放行
+            # 如果请求不包含 initData：
+            # 开发模式下注入模拟的 telegram_data，便于本地直接打开网页调试
+            try:
+                from app.config import settings
+
+                if getattr(settings, "DEBUG", False):
+                    default_id = request.headers.get("X-Dev-Tg-User-Id")
+                    if not default_id:
+                        # 取第一个管理员ID或降级为 1
+                        from app.config import settings as cfg
+
+                        default_id = (
+                            str(cfg.ADMIN_CHAT_ID[0]) if cfg.ADMIN_CHAT_ID else "1"
+                        )
+                    mock_user = {
+                        "id": int(default_id),
+                        "first_name": request.headers.get(
+                            "X-Dev-Tg-First-Name", "Dev"
+                        ),
+                        "username": request.headers.get("X-Dev-Tg-Username", "dev"),
+                        "is_premium": False,
+                    }
+                    request.state.telegram_data = {
+                        "user": json.dumps(mock_user),
+                        "hash": "mock_hash_for_development",
+                    }
+            except Exception:
+                pass
             return await call_next(request)
 
         # 解析并验证 initData

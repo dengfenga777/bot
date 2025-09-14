@@ -44,7 +44,7 @@
                 <v-list-item-subtitle>
                   ID: {{ item.raw.tg_id }}
                   <span v-if="item.raw.current_credits !== undefined">
-                    · 当前积分: {{ item.raw.current_credits.toFixed(2) }}
+                    · 当前花币: {{ item.raw.current_credits.toFixed(2) }}
                   </span>
                 </v-list-item-subtitle>
               </v-list-item>

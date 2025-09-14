@@ -324,7 +324,10 @@ async def unbind_plex_premium_free():
         logger.debug("数据库连接已关闭")
 
 
-async def handle_free_premium_lines_change(removed_lines: list | set):
+from typing import Iterable
+
+
+async def handle_free_premium_lines_change(removed_lines: Iterable[str]):
     """处理免费高级线路变更，检查并处理不再免费的线路"""
     db = DB()
     try:
@@ -650,27 +653,27 @@ async def set_invitation_credits(
     data: dict = Body(...),
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """设置邀请码生成所需积分"""
+    """设置邀请码生成所需花币"""
     check_admin_permission(user)
 
     try:
         credits = data.get("credits", 288)
 
-        # 验证积分值的合理性
+        # 验证花币值的合理性
         if not isinstance(credits, int) or credits < 0:
-            return BaseResponse(success=False, message="积分值必须是非负整数")
+            return BaseResponse(success=False, message="花币值必须是非负整数")
 
         settings.INVITATION_CREDITS = credits
         settings.save_config_to_env_file({"INVITATION_CREDITS": str(credits)})
 
         logger.info(
-            f"管理员 {user.username or user.id} 设置邀请码生成所需积分为: {credits}"
+            f"管理员 {user.username or user.id} 设置邀请码生成所需花币为: {credits}"
         )
         return BaseResponse(
-            success=True, message=f"邀请码生成所需积分已设置为 {credits}"
+            success=True, message=f"邀请码生成所需花币已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置邀请码积分失败: {str(e)}")
+        logger.error(f"设置邀请码花币失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -681,27 +684,27 @@ async def set_unlock_credits(
     data: dict = Body(...),
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """设置解锁NSFW所需积分"""
+    """设置解锁NSFW所需花币"""
     check_admin_permission(user)
 
     try:
         credits = data.get("credits", 100)
 
-        # 验证积分值的合理性
+        # 验证花币值的合理性
         if not isinstance(credits, int) or credits < 0:
-            return BaseResponse(success=False, message="积分值必须是非负整数")
+            return BaseResponse(success=False, message="花币值必须是非负整数")
 
         settings.UNLOCK_CREDITS = credits
         settings.save_config_to_env_file({"UNLOCK_CREDITS": str(credits)})
 
         logger.info(
-            f"管理员 {user.username or user.id} 设置解锁 NSFW 所需积分为: {credits}"
+            f"管理员 {user.username or user.id} 设置解锁 NSFW 所需花币为: {credits}"
         )
         return BaseResponse(
-            success=True, message=f"解锁 NSFW 所需积分已设置为 {credits}"
+            success=True, message=f"解锁 NSFW 所需花币已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置解锁积分失败: {str(e)}")
+        logger.error(f"设置解锁花币失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -712,27 +715,27 @@ async def set_premium_daily_credits(
     data: dict = Body(...),
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """设置解锁 Premium 每日所需积分"""
+    """设置解锁 Premium 每日所需花币"""
     check_admin_permission(user)
 
     try:
         credits = data.get("credits", 15)
 
-        # 验证积分值的合理性
+        # 验证花币值的合理性
         if not isinstance(credits, int) or credits < 0:
-            return BaseResponse(success=False, message="积分值必须是非负整数")
+            return BaseResponse(success=False, message="花币值必须是非负整数")
 
         settings.PREMIUM_DAILY_CREDITS = credits
         settings.save_config_to_env_file({"PREMIUM_DAILY_CREDITS": str(credits)})
 
         logger.info(
-            f"管理员 {user.username or user.id} 设置解锁 Premium 每日所需积分为: {credits}"
+            f"管理员 {user.username or user.id} 设置解锁 Premium 每日所需花币为: {credits}"
         )
         return BaseResponse(
-            success=True, message=f"解锁 Premium 每日所需积分已设置为 {credits}"
+            success=True, message=f"解锁 Premium 每日所需花币已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置 Premium 每日积分失败: {str(e)}")
+        logger.error(f"设置 Premium 每日花币失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -771,7 +774,7 @@ async def set_credits_transfer_enabled(
     data: dict = Body(...),
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """设置积分转移功能开关"""
+    """设置花币转移功能开关"""
     check_admin_permission(user)
 
     try:
@@ -782,13 +785,13 @@ async def set_credits_transfer_enabled(
         )
 
         logger.info(
-            f"管理员 {user.username or user.id} 设置积分转移功能状态为: {enabled}"
+            f"管理员 {user.username or user.id} 设置花币转移功能状态为: {enabled}"
         )
         return BaseResponse(
-            success=True, message=f"积分转移功能已{'开启' if enabled else '关闭'}"
+            success=True, message=f"花币转移功能已{'开启' if enabled else '关闭'}"
         )
     except Exception as e:
-        logger.error(f"设置积分转移功能状态失败: {str(e)}")
+        logger.error(f"设置花币转移功能状态失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 

@@ -10,3 +10,4 @@ class RankingInfo(BaseModel):
     donation_rank: List[Dict[str, Any]] = []
     watched_time_rank_plex: List[Dict[str, Any]] = []
     watched_time_rank_emby: List[Dict[str, Any]] = []
+    watched_time_rank_combined: List[Dict[str, Any]] = []

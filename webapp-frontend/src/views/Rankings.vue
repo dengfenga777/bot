@@ -4,7 +4,7 @@
     <div class="content-wrapper">
       <div class="rankings-header">
         <h1 class="page-title">排行榜</h1>
-        <p class="page-subtitle">积分、捐赠与观看时长排行</p>
+        <p class="page-subtitle">花币、捐赠与观看时长排行</p>
         <v-btn 
           color="primary" 
           variant="tonal"
@@ -43,7 +43,7 @@
           >
             <v-tab value="credits" class="tab-item">
               <v-icon start size="18">mdi-star</v-icon>
-              <span class="tab-text">积分榜</span>
+              <span class="tab-text">花币榜</span>
             </v-tab>
             <v-tab value="donation" class="tab-item">
               <v-icon start size="18">mdi-heart</v-icon>
@@ -62,7 +62,7 @@
 
         <div class="rankings-content-container">
           <v-window v-model="activeTab">
-          <!-- 积分榜 -->
+          <!-- 花币榜 -->
           <v-window-item value="credits">
             <v-list lines="two" class="px-2">
               <v-list-item
@@ -98,7 +98,7 @@
                       <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
                       <v-list-item-subtitle class="user-score">
                         <v-icon size="16" color="amber" class="mr-1">mdi-star</v-icon>
-                        {{ item.credits.toFixed(2) }} 积分
+                        {{ item.credits.toFixed(2) }} 花币
                       </v-list-item-subtitle>
                     </div>
                   </div>
@@ -926,7 +926,7 @@ export default {
     this.updateTrafficDatesByRange('today')
   },
   mounted() {
-    // 默认加载积分榜数据
+    // 默认加载花币榜数据
     this.loadTabData(this.activeTab)
     // 强制刷新一次，确保数据加载
     this.$nextTick(() => {
@@ -952,10 +952,10 @@ export default {
         let response
         switch (tab) {
           case 'credits':
-            console.log('调用积分排行API...')
+            console.log('调用花币排行API...')
             response = await getCreditsRankings()
             this.rankings.credits_rank = response.data.credits_rank || []
-            console.log('积分排行数据:', this.rankings.credits_rank)
+            console.log('花币排行数据:', this.rankings.credits_rank)
             break
           case 'donation':
             console.log('调用捐赠排行API...')
@@ -1058,7 +1058,7 @@ export default {
 
     getTabName(tab) {
       const names = {
-        credits: '积分排行榜',
+        credits: '花币排行榜',
         donation: '捐赠排行榜',
         watched: '观看时长排行榜',
         traffic: '流量排行榜'

@@ -9,11 +9,11 @@
         <v-card-text>
           <div v-if="isLoading" class="text-center py-3">
             <v-progress-circular indeterminate color="primary"></v-progress-circular>
-            <div class="mt-2">查询积分信息...</div>
+            <div class="mt-2">查询花币信息...</div>
           </div>
           <div v-else>
-            <p>生成一个新的邀请码需要消耗 <strong>{{ invitePointsRequired }}</strong> 积分</p>
-            <p>您当前积分: <strong>{{ userCurrentPoints.toFixed(2) }}</strong></p>
+            <p>生成一个新的邀请码需要消耗 <strong>{{ invitePointsRequired }}</strong> 花币</p>
+            <p>您当前花币: <strong>{{ userCurrentPoints.toFixed(2) }}</strong></p>
             <div v-if="errorMessage" class="error-message mt-2">
               {{ errorMessage }}
             </div>
@@ -68,13 +68,13 @@ export default {
     }
   },
   methods: {
-    // 打开对话框并获取积分信息
+    // 打开对话框并获取花币信息
     open() {
       this.showDialog = true;
       this.isLoading = true;
       this.errorMessage = '';
       
-      // 获取积分信息
+      // 获取花币信息
       this.fetchInvitePointsInfo();
     },
     
@@ -84,19 +84,19 @@ export default {
       this.errorMessage = '';
     },
     
-    // 获取邀请码积分信息
+    // 获取邀请码花币信息
     fetchInvitePointsInfo() {
       getInvitePointsInfo()
         .then(data => {
           this.handleInviteInfoResponse(data);
         })
         .catch(error => {
-          console.error('获取积分信息失败:', error);
+          console.error('获取花币信息失败:', error);
           this.handleInviteInfoResponse(null);
         });
     },
     
-    // 处理积分信息响应
+    // 处理花币信息响应
     handleInviteInfoResponse(data) {
       this.isLoading = false;
       
@@ -108,7 +108,7 @@ export default {
           this.errorMessage = data.error_message;
         }
       } else {
-        this.errorMessage = '获取积分信息失败，请稍后再试';
+        this.errorMessage = '获取花币信息失败，请稍后再试';
       }
     },
     

@@ -28,15 +28,15 @@ router = APIRouter(prefix="/luckywheel", tags=["幸运大转盘"])
 DEFAULT_WHEEL_CONFIG = LuckyWheelConfig(
     items=[
         LuckyWheelItem(name="谢谢参与", probability=15.0),
-        LuckyWheelItem(name="积分 +10", probability=25.0),
-        LuckyWheelItem(name="积分 -10", probability=20.0),
-        LuckyWheelItem(name="积分 +30", probability=15.0),
-        LuckyWheelItem(name="积分 -30", probability=10.0),
+        LuckyWheelItem(name="花币 +10", probability=25.0),
+        LuckyWheelItem(name="花币 -10", probability=20.0),
+        LuckyWheelItem(name="花币 +30", probability=15.0),
+        LuckyWheelItem(name="花币 -30", probability=10.0),
         LuckyWheelItem(name="邀请码 1 枚", probability=0.3),
-        LuckyWheelItem(name="积分 +50", probability=7),
-        LuckyWheelItem(name="积分 -50", probability=6),
-        LuckyWheelItem(name="积分翻倍", probability=1),
-        LuckyWheelItem(name="积分减半", probability=0.7),
+        LuckyWheelItem(name="花币 +50", probability=7),
+        LuckyWheelItem(name="花币 -50", probability=6),
+        LuckyWheelItem(name="花币翻倍", probability=1),
+        LuckyWheelItem(name="花币减半", probability=0.7),
     ],
     cost_credits=10,
     min_credits_required=30,
@@ -286,18 +286,18 @@ async def spin_wheel(
         # 获取转盘配置
         config = get_wheel_config()
 
-        # 获取用户当前积分
+        # 获取用户当前花币
         flag, current_credits = db.get_user_credits(user_id)
         if not flag:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=current_credits
             )
 
-        # 检查积分是否足够
+        # 检查花币是否足够
         if current_credits < config.min_credits_required:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"积分不足，需要至少 {config.min_credits_required} 积分才能参与",
+                detail=f"花币不足，需要至少 {config.min_credits_required} 花币才能参与",
             )
 
         # 扣除参与费用
@@ -315,7 +315,7 @@ async def spin_wheel(
             config.gen_privileged_code = False
             save_wheel_config(config)
 
-        # 更新奖励，计算积分变化
+        # 更新奖励，计算花币变化
         credits_change = calculate_credits_change(
             winner.name,
             new_credits,
@@ -323,10 +323,10 @@ async def spin_wheel(
             gen_privileged_code=gen_privileged_code,
         )
 
-        # 更新用户积分
+        # 更新用户花币
         final_credits = new_credits + credits_change
         if final_credits < 0:
-            final_credits = 0  # 积分不能为负数
+            final_credits = 0  # 花币不能为负数
 
         db.update_user_credits(credits=final_credits, tg_id=user_id)
 
@@ -334,7 +334,7 @@ async def spin_wheel(
         db.add_wheel_spin_record(user_id, winner.name, credits_change)
 
         logger.info(
-            f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 积分变化: {credits_change}, 最终积分: {final_credits}"
+            f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 花币变化: {credits_change}, 最终花币: {final_credits}"
         )
 
         return LuckyWheelSpinResult(
@@ -365,7 +365,7 @@ async def get_user_status(
         # 获取转盘配置
         config = get_wheel_config()
 
-        # 获取用户当前积分
+        # 获取用户当前花币
         flag, current_credits = db.get_user_credits(user_id)
         if not flag:
             raise HTTPException(

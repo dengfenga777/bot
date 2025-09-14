@@ -788,11 +788,11 @@
             </v-card-text>
           </v-card>
 
-          <!-- 积分配置 -->
+          <!-- 花币配置 -->
           <div class="mb-6">
             <h4 class="text-h6 font-weight-bold mb-4 d-flex align-center">
               <v-icon class="mr-2" color="warning">mdi-coin</v-icon>
-              积分配置
+              花币配置
             </h4>
             
             <v-row>
@@ -805,13 +805,13 @@
                       </v-avatar>
                       <div>
                         <div class="text-subtitle-1 font-weight-bold">参与费用</div>
-                        <div class="text-body-2 text-medium-emphasis">每次转盘消耗的积分</div>
+                        <div class="text-body-2 text-medium-emphasis">每次转盘消耗的花币</div>
                       </div>
                     </div>
                     
                     <v-text-field
                       v-model.number="tempWheelConfig.cost_credits"
-                      label="消耗积分"
+                      label="消耗花币"
                       type="number"
                       min="1"
                       max="1000"
@@ -820,9 +820,9 @@
                       variant="outlined"
                       rounded="lg"
                       :rules="[
-                        v => !!v || '消耗积分不能为空',
-                        v => v >= 1 || '消耗积分不能少于1',
-                        v => v <= 1000 || '消耗积分不能超过1000'
+                        v => !!v || '消耗花币不能为空',
+                        v => v >= 1 || '消耗花币不能少于1',
+                        v => v <= 1000 || '消耗花币不能超过1000'
                       ]"
                     >
                       <template v-slot:prepend-inner>
@@ -833,7 +833,7 @@
                           <template v-slot:activator="{ props }">
                             <v-icon v-bind="props" color="grey" size="small">mdi-help-circle-outline</v-icon>
                           </template>
-                          <span>用户每次参与转盘需要消耗的积分数量</span>
+                          <span>用户每次参与转盘需要消耗的花币数量</span>
                         </v-tooltip>
                       </template>
                     </v-text-field>
@@ -850,13 +850,13 @@
                       </v-avatar>
                       <div>
                         <div class="text-subtitle-1 font-weight-bold">最低门槛</div>
-                        <div class="text-body-2 text-medium-emphasis">参与转盘的最低积分要求</div>
+                        <div class="text-body-2 text-medium-emphasis">参与转盘的最低花币要求</div>
                       </div>
                     </div>
                     
                     <v-text-field
                       v-model.number="tempWheelConfig.min_credits_required"
-                      label="最低积分"
+                      label="最低花币"
                       type="number"
                       min="1"
                       max="10000"
@@ -865,10 +865,10 @@
                       variant="outlined"
                       rounded="lg"
                       :rules="[
-                        v => !!v || '最低积分不能为空',
-                        v => v >= 1 || '最低积分不能少于1',
-                        v => v <= 10000 || '最低积分不能超过10000',
-                        v => v >= tempWheelConfig.cost_credits || '最低积分不能少于消耗积分'
+                        v => !!v || '最低花币不能为空',
+                        v => v >= 1 || '最低花币不能少于1',
+                        v => v <= 10000 || '最低花币不能超过10000',
+                        v => v >= tempWheelConfig.cost_credits || '最低花币不能少于消耗花币'
                       ]"
                     >
                       <template v-slot:prepend-inner>
@@ -879,7 +879,7 @@
                           <template v-slot:activator="{ props }">
                             <v-icon v-bind="props" color="grey" size="small">mdi-help-circle-outline</v-icon>
                           </template>
-                          <span>用户积分低于此值时无法参与转盘</span>
+                          <span>用户花币低于此值时无法参与转盘</span>
                         </v-tooltip>
                       </template>
                     </v-text-field>
@@ -922,7 +922,7 @@
               </v-card>
             </div>
             
-            <!-- 积分配置预览 -->
+            <!-- 花币配置预览 -->
             <v-alert
               type="info"
               variant="tonal"
@@ -935,13 +935,13 @@
               <div class="text-subtitle-2 mb-2 font-weight-bold">配置说明</div>
               <ul class="text-body-2">
                 <li>
-                  用户每次转盘将消耗 <strong>{{ tempWheelConfig.cost_credits }}</strong> 积分
+                  用户每次转盘将消耗 <strong>{{ tempWheelConfig.cost_credits }}</strong> 花币
                 </li>
                 <li>
-                  用户积分需要至少 <strong>{{ tempWheelConfig.min_credits_required }}</strong> 才能参与转盘
+                  用户花币需要至少 <strong>{{ tempWheelConfig.min_credits_required }}</strong> 才能参与转盘
                 </li>
                 <li>
-                  转盘后用户最终积分 = 当前积分 - {{ tempWheelConfig.cost_credits }} + 奖品积分
+                  转盘后用户最终花币 = 当前花币 - {{ tempWheelConfig.cost_credits }} + 奖品花币
                 </li>
                 <li v-if="tempWheelConfig.gen_privileged_code">
                   <v-icon size="small" color="purple" class="mr-1">mdi-ticket-confirmation</v-icon>
@@ -1306,7 +1306,7 @@ export default {
       // 检查是否至少有2个奖品
       const countValid = this.tempWheelItems.length >= 2
       
-      // 检查积分配置是否有效
+      // 检查花币配置是否有效
       const creditsValid = this.tempWheelConfig.cost_credits >= 1 && 
                           this.tempWheelConfig.cost_credits <= 1000 &&
                           this.tempWheelConfig.min_credits_required >= 1 && 
@@ -2326,7 +2326,7 @@ export default {
   }
 }
 
-/* 积分配置卡片样式 */
+/* 花币配置卡片样式 */
 .credits-config-card {
   border: 2px solid rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;

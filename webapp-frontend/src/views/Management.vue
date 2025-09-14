@@ -258,18 +258,18 @@
               </v-card-text>
             </v-card>
 
-            <!-- 积分设置 -->
+            <!-- 花币设置 -->
             <v-card class="admin-card-enhanced mb-4">
               <v-card-title class="text-center">
-                <v-icon start color="yellow-darken-2">mdi-star</v-icon> 积分设置
+                <v-icon start color="yellow-darken-2">mdi-star</v-icon> 花币设置
               </v-card-title>
               <v-card-text>
                 <div v-if="!adminLoading && !adminError">
-                  <!-- 邀请码积分设置 -->
+                  <!-- 邀请码花币设置 -->
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-ticket-confirmation</v-icon>
-                      <span>生成邀请码所需积分：</span>
+                      <span>生成邀请码所需花币：</span>
                     </div>
                     <div class="d-flex align-center">
                       <v-text-field
@@ -287,11 +287,11 @@
                     </div>
                   </div>
                   
-                  <!-- 解锁NSFW积分设置 -->
+                  <!-- 解锁NSFW花币设置 -->
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-lock-open</v-icon>
-                      <span>解锁 NSFW 所需积分：</span>
+                      <span>解锁 NSFW 所需花币：</span>
                     </div>
                     <div class="d-flex align-center">
                       <v-text-field
@@ -309,11 +309,11 @@
                     </div>
                   </div>
                   
-                  <!-- 解锁Premium每日积分设置 -->
+                  <!-- 解锁Premium每日花币设置 -->
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
-                      <span>解锁 Premium 每日积分：</span>
+                      <span>解锁 Premium 每日花币：</span>
                     </div>
                     <div class="d-flex align-center">
                       <v-text-field
@@ -331,11 +331,11 @@
                     </div>
                   </div>
                   
-                  <!-- 积分转移功能开关 -->
+                  <!-- 花币转移功能开关 -->
                   <div class="d-flex justify-space-between align-center">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="blue-darken-1" class="mr-2">mdi-bank-transfer</v-icon>
-                      <span>积分转移功能：</span>
+                      <span>花币转移功能：</span>
                     </div>
                     <v-switch
                       v-model="adminSettings.credits_transfer_enabled"
@@ -413,7 +413,7 @@
                       <v-col cols="6">
                         <div class="stat-item">
                           <div class="stat-value text-warning">{{ wheelStats.totalCreditsChange?.toFixed(2) || '0.00' }}</div>
-                          <div class="stat-label">转盘总积分变化</div>
+                          <div class="stat-label">转盘总花币变化</div>
                         </div>
                       </v-col>
                       <v-col cols="6">
@@ -1096,7 +1096,7 @@
                     <v-col cols="6" md="3">
                       <div class="stat-card">
                         <div class="stat-number text-info">{{ auctionStats.total_credits || 0 }}</div>
-                        <div class="stat-label">总积分流通</div>
+                        <div class="stat-label">总花币流通</div>
                       </div>
                     </v-col>
                   </v-row>
@@ -1206,12 +1206,12 @@
                     </template>
                     
                     <template #item.starting_price="{ item }">
-                      <span class="text-success">{{ item.starting_price || 0 }} 积分</span>
+                      <span class="text-success">{{ item.starting_price || 0 }} 花币</span>
                     </template>
                     
                     <template #item.current_price="{ item }">
                       <span class="text-primary font-weight-bold">
-                        {{ item.current_price || item.starting_price || 0 }} 积分
+                        {{ item.current_price || item.starting_price || 0 }} 花币
                       </span>
                     </template>
                     
@@ -1299,7 +1299,7 @@
                   :items="[
                     { text: 'Plex 账号', value: 'plex' },
                     { text: 'Emby 账号', value: 'emby' },
-                    { text: '积分', value: 'credits' },
+                    { text: '花币', value: 'credits' },
                     { text: '邀请码', value: 'invite' }
                   ]"
                   item-title="text"
@@ -1314,7 +1314,7 @@
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="createAuctionForm.start_price"
-                  label="起拍价格（积分）"
+                  label="起拍价格（花币）"
                   :rules="[v => v > 0 || '起拍价格必须大于0']"
                   type="number"
                   outlined
@@ -1408,14 +1408,14 @@
             <v-col cols="12" md="6">
               <div class="detail-item">
                 <div class="text-caption text-medium-emphasis">起拍价</div>
-                <div class="text-body-1 text-success">{{ selectedAuction.starting_price || 0 }} 积分</div>
+                <div class="text-body-1 text-success">{{ selectedAuction.starting_price || 0 }} 花币</div>
               </div>
             </v-col>
             <v-col cols="12" md="6">
               <div class="detail-item">
                 <div class="text-caption text-medium-emphasis">当前价格</div>
                 <div class="text-body-1 text-primary font-weight-bold">
-                  {{ selectedAuction.current_price || selectedAuction.starting_price || 0 }} 积分
+                  {{ selectedAuction.current_price || selectedAuction.starting_price || 0 }} 花币
                 </div>
               </div>
             </v-col>
@@ -1447,7 +1447,7 @@
               :items-per-page="10"
             >
               <template #item.bid_amount="{ item }">
-                <span class="text-warning font-weight-bold">{{ item.bid_amount }} 积分</span>
+                <span class="text-warning font-weight-bold">{{ item.bid_amount }} 花币</span>
               </template>
               <template #item.bid_time="{ item }">
                 {{ formatDateTime(item.bid_time) }}
@@ -1501,7 +1501,7 @@
               <v-col cols="12">
                 <v-text-field
                   v-model.number="editAuctionForm.starting_price"
-                  label="起拍价格（积分）"
+                  label="起拍价格（花币）"
                   :rules="[v => v > 0 || '起拍价格必须大于0']"
                   type="number"
                   outlined
@@ -2023,12 +2023,12 @@ export default {
     async updateCreditsTransferEnabled() {
       try {
         await setCreditsTransferEnabled(this.adminSettings.credits_transfer_enabled)
-        this.showMessage('积分转移功能设置已更新')
+        this.showMessage('花币转移功能设置已更新')
       } catch (err) {
         // 回滚状态
         this.adminSettings.credits_transfer_enabled = !this.adminSettings.credits_transfer_enabled
-        this.showMessage('更新积分转移功能设置失败', 'error')
-        console.error('更新积分转移功能设置失败:', err)
+        this.showMessage('更新花币转移功能设置失败', 'error')
+        console.error('更新花币转移功能设置失败:', err)
       }
     },
     
@@ -2048,16 +2048,16 @@ export default {
       try {
         const credits = parseInt(this.adminSettings.invitation_credits)
         if (isNaN(credits) || credits < 0) {
-          this.showMessage('积分值必须是正整数', 'error')
+          this.showMessage('花币值必须是正整数', 'error')
           // 重新获取设置以恢复状态
           await this.fetchAdminSettings()
           return
         }
         await setInvitationCredits(credits)
-        this.showMessage(`邀请码生成所需积分已设置为 ${credits}`)
+        this.showMessage(`邀请码生成所需花币已设置为 ${credits}`)
       } catch (err) {
-        this.showMessage('更新邀请码积分设置失败', 'error')
-        console.error('更新邀请码积分设置失败:', err)
+        this.showMessage('更新邀请码花币设置失败', 'error')
+        console.error('更新邀请码花币设置失败:', err)
         // 重新获取设置以恢复状态
         await this.fetchAdminSettings()
       }
@@ -2067,16 +2067,16 @@ export default {
       try {
         const credits = parseInt(this.adminSettings.unlock_credits)
         if (isNaN(credits) || credits < 0) {
-          this.showMessage('积分值必须是正整数', 'error')
+          this.showMessage('花币值必须是正整数', 'error')
           // 重新获取设置以恢复状态
           await this.fetchAdminSettings()
           return
         }
         await setUnlockCredits(credits)
-        this.showMessage(`解锁 NSFW 所需积分已设置为 ${credits}`)
+        this.showMessage(`解锁 NSFW 所需花币已设置为 ${credits}`)
       } catch (err) {
-        this.showMessage('更新解锁积分设置失败', 'error')
-        console.error('更新解锁积分设置失败:', err)
+        this.showMessage('更新解锁花币设置失败', 'error')
+        console.error('更新解锁花币设置失败:', err)
         // 重新获取设置以恢复状态
         await this.fetchAdminSettings()
       }
@@ -2086,16 +2086,16 @@ export default {
       try {
         const credits = parseInt(this.adminSettings.premium_daily_credits)
         if (isNaN(credits) || credits < 0) {
-          this.showMessage('积分值必须是正整数', 'error')
+          this.showMessage('花币值必须是正整数', 'error')
           // 重新获取设置以恢复状态
           await this.fetchAdminSettings()
           return
         }
         await setPremiumDailyCredits(credits)
-        this.showMessage(`解锁 Premium 每日所需积分已设置为 ${credits}`)
+        this.showMessage(`解锁 Premium 每日所需花币已设置为 ${credits}`)
       } catch (err) {
-        this.showMessage('更新 Premium 每日积分设置失败', 'error')
-        console.error('更新 Premium 每日积分设置失败:', err)
+        this.showMessage('更新 Premium 每日花币设置失败', 'error')
+        console.error('更新 Premium 每日花币设置失败:', err)
         // 重新获取设置以恢复状态
         await this.fetchAdminSettings()
       }

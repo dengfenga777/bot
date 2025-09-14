@@ -6,12 +6,13 @@ from copy import copy
 from app.config import settings
 from app.handlers.db import *
 
-# from app.handlers.emby import *
-# from app.handlers.plex import *
+from app.handlers.emby import bind_emby_handler, redeem_emby_handler, unbind_emby_handler
+from app.handlers.plex import bind_plex_handler, redeem_plex_handler, unbind_plex_handler
 from app.handlers.rank import *
 from app.handlers.start import *
 from app.handlers.status import *
 from app.handlers.user import *
+from app.handlers.extra import *
 from app.log import logger
 from app.premium import check_premium_expiring_soon, check_premium_expiry
 from app.scheduler import Scheduler
@@ -24,20 +25,29 @@ from app.update_db import (
 )
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
+from app.integrations.loader import load_handlers, load_routers
 
 
 def start_api_server():
     """启动 WebApp API 服务器"""
     import uvicorn
-    from app.webapp import setup_static_files
+    from app.webapp import setup_static_files, app as web_api_app
+
+    # 加载集成项目的 FastAPI 路由
+    try:
+        for router in load_routers():
+            web_api_app.include_router(router)
+            logger.info(f"集成路由已加载: {router}")
+    except Exception as e:
+        logger.error(f"加载集成路由失败: {e}")
 
     # 配置静态文件
     if not setup_static_files():
         logger.warning("WebApp 静态文件配置失败，仅 API 端点可用")
 
-    # 启动 FastAPI 服务
+    # 启动 FastAPI 服务，直接传入已挂载静态资源的 app 实例
     uvicorn.run(
-        "app.webapp:app",
+        web_api_app,
         host=settings.WEBAPP_HOST,
         port=settings.WEBAPP_PORT,
         reload=False,
@@ -55,7 +65,7 @@ def start_bot(application):
 def add_init_scheduler_job():
     """添加调度任务"""
     scheduler = Scheduler()
-    # 每天凌晨 12:00 更新 Plex/Emby 积分并发送通知 (异步任务)
+    # 每天凌晨 12:00 更新 Plex/Emby 花币并发送通知 (异步任务)
     scheduler.add_async_job(
         func=update_credits,
         trigger="cron",
@@ -66,7 +76,7 @@ def add_init_scheduler_job():
         hour=0,
         minute=0,
     )
-    logger.info("添加定时任务：每天凌晨 12:00 更新积分 (Plex 和 Emby)")
+    logger.info("添加定时任务：每天凌晨 12:00 更新花币 (Plex 和 Emby)")
     # 每天中午 12:00 更新 plex 用户信息 (同步任务)
     scheduler.add_sync_job(
         func=update_plex_info,
@@ -154,7 +164,7 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 1 分钟更新线路流量统计信息")
 
-    # 每 5min 更新一次积分信息
+    # 每 5min 更新一次花币信息
     scheduler.add_sync_job(
         func=rewrite_users_credits_to_redis,
         trigger="cron",
@@ -163,7 +173,7 @@ def add_init_scheduler_job():
         max_instances=1,
         minute="*/5",  # 每 5 分钟执行一次
     )
-    logger.info("添加定时任务：每 5 分钟更新用户积分信息")
+    logger.info("添加定时任务：每 5 分钟更新用户花币信息")
 
 
 if __name__ == "__main__":
@@ -182,6 +192,14 @@ if __name__ == "__main__":
         if var.endswith("_handler"):
             logger.info(f"Add handler: {var}")
             application.add_handler(val)
+
+    # 加载集成项目的 Telegram 处理程序
+    try:
+        for h in load_handlers():
+            application.add_handler(h)
+            logger.info(f"集成处理程序已加载: {h}")
+    except Exception as e:
+        logger.error(f"加载集成处理程序失败: {e}")
 
     # 根据配置决定是否启动 WebApp
     if settings.WEBAPP_ENABLE:

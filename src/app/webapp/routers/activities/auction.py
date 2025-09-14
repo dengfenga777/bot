@@ -267,18 +267,18 @@ async def place_bid(
                 detail=f"出价必须高于当前价格 {auction_data['current_price']}",
             )
 
-        # 检查用户积分是否足够
+        # 检查用户花币是否足够
         user_credits_result = db.get_user_credits(current_user.id)
         if not user_credits_result[0]:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="无法获取用户积分信息"
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"无法获取用户{settings.MONEY_NAME}信息"
             )
 
         user_credits = user_credits_result[1]
         if user_credits < bid_request.bid_amount:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"积分不足，当前积分: {user_credits}，需要: {bid_request.bid_amount}",
+                detail=f"{settings.MONEY_NAME}不足，当前{settings.MONEY_NAME}: {user_credits}，需要: {bid_request.bid_amount}",
             )
 
         # 出价
@@ -540,14 +540,14 @@ async def finish_auction_admin(
             if winner:
                 await send_message_by_url(
                     winner.get("winner_id"),
-                    f"恭喜你，竞拍 {existing_auction['title']} 获胜！最终出价为 {winner.get('final_price')} 积分",
+                    f"恭喜你，竞拍 {existing_auction['title']} 获胜！最终出价为 {winner.get('final_price')} {settings.MONEY_NAME}",
                 )
                 if not winner.get("credits_reduced", False):
                     # 如果未扣除积分，通知管理员
                     for chat_id in settings.ADMIN_CHAT_ID:
                         await send_message_by_url(
                             chat_id=chat_id,
-                            text=f"用户 {winner.get('winner_id')} 在竞拍 {existing_auction['title']} 中获胜，但未扣除积分。",
+                            text=f"用户 {winner.get('winner_id')} 在竞拍 {existing_auction['title']} 中获胜，但未扣除{settings.MONEY_NAME}。",
                         )
             return {
                 "success": True,

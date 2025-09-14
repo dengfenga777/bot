@@ -28,13 +28,25 @@ class Emby:
     def add_user(
         self, username: str, user_template: str = settings.EMBY_USER_TEMPLATE
     ) -> tuple[bool, str]:
+        """Create an Emby user.
+
+        If `user_template` resolves to a valid user id, copy policy from it.
+        Otherwise create a plain user with default policy.
+        """
         header = {"accept": "application/json", "Content-Type": "application/json"}
 
-        data = {
-            "Name": username,
-            "CopyFromUserId": self.get_uid_from_username(user_template),
-            "UserCopyOptions": ["UserPolicy"],
-        }
+        data = {"Name": username}
+        try:
+            if user_template:
+                tmpl_id = self.get_uid_from_username(user_template)
+                if tmpl_id:
+                    data.update({
+                        "CopyFromUserId": tmpl_id,
+                        "UserCopyOptions": ["UserPolicy"],
+                    })
+        except Exception:
+            # ignore template resolution errors; proceed with basic creation
+            pass
 
         try:
             response = requests.post(
@@ -50,6 +62,31 @@ class Emby:
                     return False, response.text
             else:
                 return False, "Unknown error"
+        except Exception as e:
+            return False, str(e)
+
+    def set_user_password(self, user_id: str, new_password: str) -> tuple[bool, str]:
+        """Set Emby user's password as admin.
+
+        Returns (success, message)
+        """
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        payload = {
+            "Id": user_id,
+            "CurrentPw": None,
+            "NewPw": new_password,
+            "ResetPassword": False,
+        }
+        try:
+            resp = requests.post(
+                url=self.base_url + f"/Users/{user_id}/Password" + f"?api_key={self.api_token}",
+                headers=headers,
+                data=json.dumps(payload),
+            )
+            if resp and resp.status_code in (200, 204):
+                return True, "ok"
+            else:
+                return False, resp.text if resp is not None else "Unknown error"
         except Exception as e:
             return False, str(e)
 

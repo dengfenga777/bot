@@ -39,7 +39,7 @@
               <h3 class="activity-title">{{ activity.title }}</h3>
               <p class="activity-subtitle">{{ activity.description }}</p>
               
-              <!-- 积分要求信息 -->
+              <!-- 花币要求信息 -->
               <div v-if="activity.enabled" class="credits-requirement mt-2">
                 <v-chip
                   size="small"
@@ -48,7 +48,7 @@
                   class="mr-2"
                 >
                   <v-icon size="small" class="mr-1">mdi-star</v-icon>
-                  最低积分要求： {{ activity.requireCredits }}
+                  最低花币要求： {{ activity.requireCredits }}
                 </v-chip>
                 
                 <v-chip
@@ -58,7 +58,7 @@
                   color="info"
                 >
                   <v-icon size="small" class="mr-1">mdi-minus</v-icon>
-                  参与消耗积分：{{ activity.costCredits }}
+                  参与消耗花币：{{ activity.costCredits }}
                 </v-chip>
                 
                 <v-chip
@@ -115,7 +115,7 @@
           
           <v-card-actions class="justify-center pb-4">
             <div class="text-caption text-info">
-              当前积分：{{ userCredits.toFixed(2) }}
+              当前花币：{{ userCredits.toFixed(2) }}
             </div>
           </v-card-actions>
         </v-card>
@@ -144,7 +144,7 @@
               <h3 class="mb-3">{{ selectedActivity.title }}</h3>
               <p class="text-body-1 mb-4">{{ selectedActivity.description }}</p>
               
-              <!-- 积分要求信息 -->
+              <!-- 花币要求信息 -->
               <div v-if="selectedActivity.enabled" class="credits-info mb-4">
                 <v-alert
                   :type="canParticipateActivity(selectedActivity) ? 'success' : 'warning'"
@@ -155,10 +155,10 @@
                   <div class="d-flex align-center justify-space-between">
                     <span>
                       <v-icon size="small" class="mr-1">mdi-star</v-icon>
-                      最低积分要求：{{ selectedActivity.requireCredits }}
+                      最低花币要求：{{ selectedActivity.requireCredits }}
                     </span>
                     <span class="font-weight-bold">
-                      当前积分：{{ userCredits.toFixed(2) }}
+                      当前花币：{{ userCredits.toFixed(2) }}
                     </span>
                   </div>
                 </v-alert>
@@ -171,7 +171,7 @@
                   class="mb-3"
                 >
                   <v-icon size="small" class="mr-1">mdi-minus</v-icon>
-                  每次参与消耗：{{ selectedActivity.costCredits }} 积分
+                  每次参与消耗：{{ selectedActivity.costCredits }} 花币
                 </v-alert>
                 
                 <v-alert
@@ -182,7 +182,7 @@
                   class="mb-3"
                 >
                   <v-icon size="small" class="mr-1">mdi-information</v-icon>
-                  免费参与，只需要有足够积分进行出价
+                  免费参与，只需要有足够花币进行出价
                 </v-alert>
                 
                 <v-alert
@@ -192,7 +192,7 @@
                   density="compact"
                 >
                   <v-icon size="small" class="mr-1">mdi-alert</v-icon>
-                  积分不足，还需 {{ (selectedActivity.requireCredits - userCredits).toFixed(2) }} 积分
+                  花币不足，还需 {{ (selectedActivity.requireCredits - userCredits).toFixed(2) }} 花币
                 </v-alert>
               </div>
               
@@ -294,7 +294,7 @@
                         @click="openBidDialog(auction)"
                       >
                         <v-icon start>mdi-gavel</v-icon>
-                        {{ canParticipateAuction(auction) ? '参与竞拍' : '积分不足' }}
+                        {{ canParticipateAuction(auction) ? '参与竞拍' : '花币不足' }}
                       </v-btn>
                     </v-card-actions>
                   </v-card>
@@ -305,7 +305,7 @@
           
           <v-card-actions class="justify-center pb-4">
             <div class="text-caption text-info">
-              当前积分：{{ userCredits.toFixed(2) }}
+              当前花币：{{ userCredits.toFixed(2) }}
             </div>
           </v-card-actions>
         </v-card>
@@ -392,7 +392,7 @@ export default {
   },
   data() {
     return {
-      userCredits: 0, // 用户积分
+      userCredits: 0, // 用户花币
       loading: true, // 加载状态
       error: null, // 错误信息
       showLuckyWheelDialog: false, // 幸运大转盘弹窗

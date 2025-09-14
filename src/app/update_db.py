@@ -26,8 +26,8 @@ from app.utils import (
 
 
 def update_plex_credits():
-    """更新积分及观看时长"""
-    logger.info("开始更新 Plex 用户积分及观看时长")
+    """更新花币及观看时长"""
+    logger.info("开始更新 Plex 用户花币及观看时长")
     _db = DB()
     notification_tasks = []
     try:
@@ -103,20 +103,20 @@ def update_plex_credits():
                         (
                             tg_id,
                             f"""
-Plex 观看积分更新通知
+Plex 观看花币更新通知
 ====================
 
 新增观看时长: {round(play_duration, 2)} 小时
-新增观看积分：{round(credits_inc, 2)}
+新增观看花币：{round(credits_inc, 2)}
 Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
 超出每日流量限额：{max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-流量消耗积分：{round(traffic_cost_credits, 2)}
+流量消耗花币：{round(traffic_cost_credits, 2)}
 
-积分变化：{round(credits_inc - traffic_cost_credits, 2)}
+花币变化：{round(credits_inc - traffic_cost_credits, 2)}
 
 --------------------
 
-当前总积分：{round(credits, 2)}
+当前总花币：{round(credits, 2)}
 当前总观看时长：{round(watched_time, 2)} 小时
 
 ====================""",
@@ -124,30 +124,30 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
                     )
 
             logger.info(
-                f"更新 Plex 用户 {plex_username} ({plex_id}) 的积分和观看时长: "
-                f"新增观看时长 {round(play_duration, 2)} 小时，新增观看积分 {round(credits_inc, 2)}, 流量消耗积分 {round(traffic_cost_credits, 2)}"
+                f"更新 Plex 用户 {plex_username} ({plex_id}) 的花币和观看时长: "
+                f"新增观看时长 {round(play_duration, 2)} 小时，新增观看花币 {round(credits_inc, 2)}, 流量消耗花币 {round(traffic_cost_credits, 2)}"
             )
 
     except Exception as e:
-        logger.error(f"更新 Plex 用户积分及观看时长失败: {e}")
+        logger.error(f"更新 Plex 用户花币及观看时长失败: {e}")
         notification_tasks.append(
             (
                 settings.ADMIN_CHAT_ID[0],
-                f"更新 Plex 用户积分及观看时长失败: {e}",
+                f"更新 Plex 用户花币及观看时长失败: {e}",
             )
         )
         return notification_tasks
     else:
         _db.con.commit()
-        logger.info("Plex 用户积分及观看时长更新完成")
+        logger.info("Plex 用户花币及观看时长更新完成")
         return notification_tasks
     finally:
         _db.close()
 
 
 def update_emby_credits():
-    """更新 emby 积分及观看时长"""
-    logger.info("开始更新 Emby 用户积分及观看时长")
+    """更新 emby 花币及观看时长"""
+    logger.info("开始更新 Emby 用户花币及观看时长")
     # 获取所有用户的观看时长
     emby = Emby()
     _db = DB()
@@ -215,20 +215,20 @@ def update_emby_credits():
                         (
                             user[1],
                             f"""
-Emby 观看积分更新通知
+Emby 观看花币更新通知
 ====================
 
 新增观看时长: {round(playduration - user[2], 2)} 小时
-新增观看积分：{round(credits_inc, 2)}
+新增观看花币：{round(credits_inc, 2)}
 Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
 超出每日流量限额：{max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-流量消耗积分：{round(traffic_cost_credits, 2)}
+流量消耗花币：{round(traffic_cost_credits, 2)}
 
-积分变化：{round(credits_inc - traffic_cost_credits, 2)}
+花币变化：{round(credits_inc - traffic_cost_credits, 2)}
 
 --------------------
 
-当前总积分：{round(_credits, 2)}
+当前总花币：{round(_credits, 2)}
 当前总观看时长：{round(playduration, 2)} 小时
 
 ====================""",
@@ -236,28 +236,28 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
                     )
 
             logger.info(
-                f"更新 Emby 用户 {emby_username} ({user[0]}) 的积分和观看时长: "
-                f"新增观看时长 {round(playduration - user[2], 2)} 小时，新增观看积分 {round(credits_inc, 2)}, 流量消耗积分 {round(traffic_cost_credits, 2)}"
+                f"更新 Emby 用户 {emby_username} ({user[0]}) 的花币和观看时长: "
+                f"新增观看时长 {round(playduration - user[2], 2)} 小时，新增观看花币 {round(credits_inc, 2)}, 流量消耗花币 {round(traffic_cost_credits, 2)}"
             )
     except Exception as e:
-        logger.error(f"更新 Emby 用户积分及观看时长失败: {e}")
+        logger.error(f"更新 Emby 用户花币及观看时长失败: {e}")
         notification_tasks.append(
             (
                 settings.ADMIN_CHAT_ID[0],
-                f"更新 Emby 用户积分及观看时长失败: {e}",
+                f"更新 Emby 用户花币及观看时长失败: {e}",
             )
         )
         return notification_tasks
     else:
         _db.con.commit()
-        logger.info("Emby 用户积分及观看时长更新完成")
+        logger.info("Emby 用户花币及观看时长更新完成")
         return notification_tasks
     finally:
         _db.close()
 
 
 async def update_credits():
-    """更新 Plex 和 Emby 用户积分及观看时长"""
+    """更新 Plex 和 Emby 用户花币及观看时长"""
     notification_tasks = update_plex_credits()
     notification_tasks.extend(update_emby_credits())
     for tg_id, text in notification_tasks:
@@ -391,11 +391,11 @@ def add_all_plex_user():
 
 def update_donation_credits(old_multiplier, new_multiplier):
     """
-    更新捐赠积分
+    更新捐赠花币
 
     Args:
-        old_multiplier: 旧的积分倍数
-        new_multiplier: 新的积分倍数
+        old_multiplier: 旧的花币倍数
+        new_multiplier: 新的花币倍数
     """
     try:
         db = DB()
@@ -405,7 +405,7 @@ def update_donation_credits(old_multiplier, new_multiplier):
         ).fetchall()
 
         for tg_id, donation, credits in donations:
-            # 计算新的积分
+            # 计算新的花币
             new_credits = round(
                 credits + donation * (new_multiplier - old_multiplier), 2
             )
@@ -415,7 +415,7 @@ def update_donation_credits(old_multiplier, new_multiplier):
                 (new_credits, tg_id),
             )
             logger.info(
-                f"用户 {tg_id} 捐赠：{donation}, 更新积分: {credits} -> {new_credits}"
+                f"用户 {tg_id} 捐赠：{donation}, 更新花币: {credits} -> {new_credits}"
             )
 
         db.con.commit()
@@ -481,14 +481,14 @@ async def finish_expired_auctions_job():
         for autction in finished_auctions:
             await send_message_by_url(
                 autction.get("winner_id"),
-                f"恭喜你，竞拍 {autction['title']} 获胜！最终出价为 {autction['final_price']} 积分",
+                f"恭喜你，竞拍 {autction['title']} 获胜！最终出价为 {autction['final_price']} 花币",
             )
             if not autction.get("credits_reduced", False):
-                # 如果未扣除积分，通知管理员
+                # 如果未扣除花币，通知管理员
                 for chat_id in settings.ADMIN_CHAT_ID:
                     await send_message_by_url(
                         chat_id=chat_id,
-                        text=f"用户 {autction.get('winner_id')} 在竞拍 {autction['title']} 中获胜，但未扣除积分。",
+                        text=f"用户 {autction.get('winner_id')} 在竞拍 {autction['title']} 中获胜，但未扣除花币。",
                     )
         return finished_auctions
     except Exception as e:

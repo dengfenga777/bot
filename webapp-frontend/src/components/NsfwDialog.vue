@@ -8,9 +8,9 @@
           <div class="mt-2">加载中...</div>
         </div>
         <div v-else>
-          <p v-if="isUnlock">解锁 NSFW 内容需要消耗 <strong>{{ cost }}</strong> 积分</p>
-          <p v-else>锁定 NSFW 内容将返还 <strong>{{ refund }}</strong> 积分</p>
-          <p class="mt-2">您当前积分: <strong>{{ currentCredits.toFixed(2) }}</strong></p>
+          <p v-if="isUnlock">解锁 NSFW 内容需要消耗 <strong>{{ cost }}</strong> 花币</p>
+          <p v-else>锁定 NSFW 内容将返还 <strong>{{ refund }}</strong> 花币</p>
+          <p class="mt-2">您当前花币: <strong>{{ currentCredits.toFixed(2) }}</strong></p>
           <div v-if="error" class="error-message mt-2 red--text">
             {{ error }}
           </div>
@@ -68,7 +68,7 @@ export default {
       this.error = '';
       
       try {
-        // 获取NSFW操作所需积分或返还积分信息
+        // 获取NSFW操作所需花币或返还花币信息
         const operation = this.isUnlock ? 'unlock' : 'lock';
         const infoData = await getNsfwOperationInfo(service, operation);
         
@@ -78,8 +78,8 @@ export default {
           this.refund = infoData.refund;
         }
       } catch (error) {
-        this.error = '获取积分信息失败';
-        console.error('获取 NSFW 积分信息失败:', error);
+        this.error = '获取花币信息失败';
+        console.error('获取 NSFW 花币信息失败:', error);
       } finally {
         this.loading = false;
       }

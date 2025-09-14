@@ -86,7 +86,7 @@ async def unlock_premium(
     total_cost = data.total_cost
 
     logger.info(
-        f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解锁 {service} Premium {days} 天，费用 {total_cost} 积分"
+        f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解锁 {service} Premium {days} 天，费用 {total_cost} {settings.MONEY_NAME}"
     )
 
     # 检查 Premium 解锁功能是否开放
@@ -115,7 +115,7 @@ async def unlock_premium(
 
         current_credits = stats_info[2]
         if current_credits < total_cost:
-            raise HTTPException(status_code=400, detail="积分不足")
+            raise HTTPException(status_code=400, detail=f"{settings.MONEY_NAME}不足")
 
         try:
             new_expiry = update_premium_status(db, tg_id, service, days)
