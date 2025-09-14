@@ -138,6 +138,15 @@ class DB:
                     user_id TEXT DEFAULT NULL,
                     timestamp TEXT NOT NULL
                 )
+
+                -- 本地聚合的 Emby 观看统计（无需 user_usage_stats 插件）
+                CREATE TABLE IF NOT EXISTS emby_watch_agg(
+                    date TEXT NOT NULL,
+                    emby_id TEXT NOT NULL,
+                    username TEXT,
+                    seconds INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (date, emby_id)
+                );
                 """
             )
         except sqlite3.OperationalError:
@@ -519,6 +528,55 @@ class DB:
             "SELECT emby_username,tg_id,emby_line,is_premium FROM emby_user WHERE emby_line IS NOT NULL"
         )
         return rslt.fetchall()
+
+    # ---- Emby 本地观看统计聚合（无需插件） ----
+    def add_emby_watch_seconds(self, date_str: str, emby_id: str, username: str, seconds: int = 60) -> bool:
+        """累加指定用户在指定日期的观看秒数（本地聚合）"""
+        try:
+            # 先尝试更新
+            self.cur.execute(
+                "UPDATE emby_watch_agg SET seconds = seconds + ?, username = COALESCE(?, username) WHERE date=? AND emby_id=?",
+                (int(seconds), username, date_str, str(emby_id)),
+            )
+            if self.cur.rowcount == 0:
+                # 不存在则插入
+                self.cur.execute(
+                    "INSERT INTO emby_watch_agg (date, emby_id, username, seconds) VALUES (?, ?, ?, ?)",
+                    (date_str, str(emby_id), username, int(seconds)),
+                )
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"add_emby_watch_seconds failed: {e}")
+            return False
+
+    def get_emby_watch_rank_last_days(self, days: int = 1, limit: int = 20):
+        """获取最近 days 天的 Emby 观看排行（基于本地聚合表）
+
+        返回列表: [(emby_id, username, hours), ...]
+        """
+        try:
+            from datetime import datetime, timedelta
+            dates = []
+            today = datetime.now().date()
+            for i in range(days):
+                d = today - timedelta(days=i)
+                dates.append(d.strftime("%Y-%m-%d"))
+            placeholders = ",".join(["?"] * len(dates))
+            sql = (
+                f"SELECT emby_id, COALESCE(username, ''), SUM(seconds) as total_seconds "
+                f"FROM emby_watch_agg WHERE date IN ({placeholders}) "
+                f"GROUP BY emby_id ORDER BY total_seconds DESC LIMIT ?"
+            )
+            params = (*dates, int(limit))
+            rows = self.cur.execute(sql, params).fetchall()
+            return [
+                (row[0], row[1], float(row[2]) / 3600.0 if row[2] else 0.0)
+                for row in rows
+            ]
+        except Exception as e:
+            logger.error(f"get_emby_watch_rank_last_days failed: {e}")
+            return []
 
     def set_plex_line(self, line, tg_id=None, plex_id=None):
         try:

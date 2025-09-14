@@ -23,6 +23,7 @@ from app.utils import (
     get_user_total_duration,
     send_message_by_url,
 )
+import requests
 
 
 def update_plex_credits():
@@ -266,6 +267,49 @@ async def update_credits():
         await asyncio.sleep(1)
 
 
+def _is_emby_session_playing(sess: dict) -> bool:
+    now = sess.get("NowPlayingItem") or {}
+    media_type = str(now.get("MediaType", "")).lower()
+    if media_type not in {"video", "audio"}:
+        return False
+    ps = sess.get("PlayState") or {}
+    if ps.get("IsPaused") is True:
+        return False
+    return True
+
+
+def collect_emby_live_watch() -> None:
+    """每分钟采集一次 Emby 在线“在播”会话并本地累计时长（无需插件）"""
+    try:
+        if not (settings.EMBY_BASE_URL and settings.EMBY_API_TOKEN):
+            return
+        emby = Emby()
+        resp = requests.get(
+            f"{emby.base_url.rstrip('/')}/Sessions",
+            params={"api_key": emby.api_token, "ActiveWithinSeconds": 600},
+            timeout=8,
+        )
+        if not resp.ok:
+            logger.error(f"collect_emby_live_watch sessions failed: {resp.status_code}")
+            return
+        sessions = resp.json() or []
+        playing = [s for s in sessions if _is_emby_session_playing(s)]
+        if not playing:
+            return
+        from datetime import datetime
+        date_str = datetime.now(settings.TZ).strftime("%Y-%m-%d")
+        db = DB()
+        for s in playing:
+            emby_id = s.get("UserId") or ""
+            username = s.get("UserName") or ""
+            if not emby_id:
+                continue
+            db.add_emby_watch_seconds(date_str, str(emby_id), username, seconds=60)
+        db.close()
+    except Exception as e:
+        logger.error(f"collect_emby_live_watch failed: {e}")
+
+
 async def push_emby_watch_rank(days: int = 1, top_n: int = 10) -> None:
     """推送 Emby 观看时长排行榜到群（每天/每周总结）
 
@@ -273,47 +317,69 @@ async def push_emby_watch_rank(days: int = 1, top_n: int = 10) -> None:
     通过 Telegram 发送到管理员群/第一个管理员ID。
     """
     try:
-        emby = Emby()
         db = DB()
 
-        results = emby.get_user_watch_time_rank(days=days, limit=top_n)
-        if not results:
-            if settings.ADMIN_CHAT_ID:
-                await send_message_by_url(
-                    chat_id=settings.ADMIN_CHAT_ID[0],
-                    text=f"Emby 观看时长榜通知：近{days}天无数据",
-                    disable_notification=True,
-                )
-            return
+        # 优先使用本地聚合（无需插件）
+        aggregated = db.get_emby_watch_rank_last_days(days=days, limit=top_n)
+        if aggregated:
+            def resolve_name(emby_id: str, username_hint: str):
+                info = db.get_emby_info_by_emby_id(emby_id)
+                if info:
+                    emby_username = info[0]
+                    tg_id = info[2]
+                    return (
+                        get_user_name_from_tg_id(tg_id)
+                        if tg_id is not None
+                        else emby_username or username_hint or emby_id
+                    )
+                return username_hint or emby_id
 
-        # 组装显示名与时长
-        lines = []
-        for idx, (emby_user_id, hours) in enumerate(results[:top_n], start=1):
-            info = db.get_emby_info_by_emby_id(emby_user_id)
-            if info:
-                emby_username = info[1]  # (emby_id, emby_username, ...)? verify order
-                tg_id = info[-1] if len(info) >= 5 else None
-                # our table schema: (emby_username, emby_id, tg_id, ...)
-                emby_username = info[0]
-                tg_id = info[2]
-                name = (
-                    get_user_name_from_tg_id(tg_id)
-                    if tg_id is not None
-                    else emby_username or emby_user_id
-                )
-            else:
-                name = emby_user_id
-            lines.append(f"{idx}. {name}: {hours:.2f} 小时")
+            lines = []
+            for idx, (emby_user_id, username, hours) in enumerate(aggregated, start=1):
+                name = resolve_name(emby_user_id, username)
+                lines.append(f"{idx}. {name}: {hours:.2f} 小时")
 
-        title = (
-            f"【Emby 观看时长榜 - 日榜】\n\n" if days == 1 else f"【Emby 观看时长榜 - 近{days}天】\n\n"
-        )
-        text = title + "\n".join(lines)
+            title = (
+                f"【Emby 观看时长榜 - 日榜】\n\n" if days == 1 else f"【Emby 观看时长榜 - 近{days}天】\n\n"
+            )
+            text = title + "\n".join(lines)
+            target = settings.ADMIN_CHAT_ID[0] if settings.ADMIN_CHAT_ID else None
+            if target:
+                await send_message_by_url(chat_id=target, text=text, disable_notification=True)
+        else:
+            # 本地无聚合数据时，回退为插件方式（若可用）
+            emby = Emby()
+            results = emby.get_user_watch_time_rank(days=days, limit=top_n)
+            if not results:
+                if settings.ADMIN_CHAT_ID:
+                    await send_message_by_url(
+                        chat_id=settings.ADMIN_CHAT_ID[0],
+                        text=f"Emby 观看时长榜通知：近{days}天无数据",
+                        disable_notification=True,
+                    )
+                return
+            lines = []
+            for idx, (emby_user_id, hours) in enumerate(results[:top_n], start=1):
+                info = db.get_emby_info_by_emby_id(emby_user_id)
+                if info:
+                    emby_username = info[0]
+                    tg_id = info[2]
+                    name = (
+                        get_user_name_from_tg_id(tg_id)
+                        if tg_id is not None
+                        else emby_username or emby_user_id
+                    )
+                else:
+                    name = emby_user_id
+                lines.append(f"{idx}. {name}: {hours:.2f} 小时")
 
-        # 发送到管理员组/第一个管理员
-        target = settings.ADMIN_CHAT_ID[0] if settings.ADMIN_CHAT_ID else None
-        if target:
-            await send_message_by_url(chat_id=target, text=text, disable_notification=True)
+            title = (
+                f"【Emby 观看时长榜 - 日榜】\n\n" if days == 1 else f"【Emby 观看时长榜 - 近{days}天】\n\n"
+            )
+            text = title + "\n".join(lines)
+            target = settings.ADMIN_CHAT_ID[0] if settings.ADMIN_CHAT_ID else None
+            if target:
+                await send_message_by_url(chat_id=target, text=text, disable_notification=True)
     except Exception as e:
         logger.error(f"push_emby_watch_rank failed: {e}")
     finally:

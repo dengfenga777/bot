@@ -190,6 +190,17 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 1 分钟更新线路流量统计信息")
 
+    # 每 1min 采集 Emby 在播并本地累计（无需插件）
+    scheduler.add_sync_job(
+        func=collect_emby_live_watch,
+        trigger="cron",
+        id="collect_emby_live_watch",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/1",
+    )
+    logger.info("添加定时任务：每 1 分钟采集 Emby 在播并累计本地观看时长")
+
     # 每 5min 更新一次花币信息
     scheduler.add_sync_job(
         func=rewrite_users_credits_to_redis,
