@@ -213,34 +213,72 @@ class Emby:
         try:
             from datetime import datetime, timedelta
 
-            end = datetime.now()
+            # 使用配置的时区，避免时差导致查不到数据
+            end = datetime.now(settings.TZ)
             start = end - timedelta(days=days)
             start_time = start.strftime("%Y-%m-%d %H:%M:%S")
             end_time = end.strftime("%Y-%m-%d %H:%M:%S")
 
             headers = {"accept": "application/json", "Content-Type": "application/json"}
-            data = {
-                "CustomQueryString": (
-                    "SELECT UserId, SUM(PlayDuration - PauseDuration) AS WatchTime "
-                    "FROM PlaybackActivity "
-                    f"WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' "
-                    "GROUP BY UserId ORDER BY WatchTime DESC"
-                ),
-                "ReplaceUserId": True,
-            }
 
-            resp = requests.post(
-                url=self.base_url + "/user_usage_stats/submit_custom_query",
-                params={"api_key": self.api_token},
-                headers=headers,
-                data=json.dumps(data),
-                timeout=10,
-            )
-            if not resp.ok:
-                logger.error(f"Emby rank API failed: {resp.status_code} {resp.text}")
+            def submit(sql: str, replace_user_id: bool = True):
+                data = {"CustomQueryString": sql, "ReplaceUserId": bool(replace_user_id)}
+                # 某些环境插件挂载在根路径，某些挂在 /emby 下，逐个尝试
+                paths = [
+                    "/user_usage_stats/submit_custom_query",
+                    "/emby/user_usage_stats/submit_custom_query",
+                ]
+                last_err = None
+                for path in paths:
+                    try:
+                        resp = requests.post(
+                            url=self.base_url.rstrip("/") + path,
+                            params={"api_key": self.api_token},
+                            headers=headers,
+                            json=data,  # 使用 JSON 形式提交，兼容更多环境
+                            timeout=10,
+                        )
+                        if resp.ok:
+                            js = resp.json() or {}
+                            return js.get("results", []) or []
+                        last_err = f"{resp.status_code} {resp.text}"
+                    except Exception as e:
+                        last_err = str(e)
+                if last_err:
+                    logger.error(f"Emby rank API failed: {last_err}")
                 return []
-            js = resp.json() or {}
-            rows = js.get("results", []) or []
+
+            # 优先使用 PlayDuration - PauseDuration，不行则退化为 PlayDuration
+            attempts = []
+            attempts.append((
+                "SELECT UserId, SUM(PlayDuration - PauseDuration) AS WatchTime "
+                "FROM PlaybackActivity "
+                f"WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' "
+                "GROUP BY UserId ORDER BY WatchTime DESC",
+                True,
+            ))
+            attempts.append((
+                "SELECT UserId, SUM(PlayDuration) AS WatchTime "
+                "FROM PlaybackActivity "
+                f"WHERE DateCreated >= '{start_time}' AND DateCreated < '{end_time}' "
+                "GROUP BY UserId ORDER BY WatchTime DESC",
+                True,
+            ))
+            # 有些环境字段为 DateCreatedUtc，且需要 ReplaceUserId=False
+            attempts.append((
+                "SELECT UserId, SUM(PlayDuration) AS WatchTime "
+                "FROM PlaybackActivity "
+                f"WHERE DateCreatedUtc >= '{start_time}' AND DateCreatedUtc < '{end_time}' "
+                "GROUP BY UserId ORDER BY WatchTime DESC",
+                False,
+            ))
+
+            rows = []
+            for sql, rep in attempts:
+                rows = submit(sql, rep)
+                if rows:
+                    break
+
             results: list[tuple[str, float]] = []
             for row in rows[: limit or 999]:
                 try:

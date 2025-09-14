@@ -69,8 +69,15 @@ async def online_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         if settings.TAUTULLI_URL and settings.TAUTULLI_APIKEY:
             data = Tautulli().get_activity() or {}
             sessions = data.get("sessions", []) or []
-            plex_online = int(data.get("stream_count", len(sessions) or 0) or 0)
-            for s in sessions[:10]:
+            # 仅统计正在播放（排除暂停/空闲）
+            playing = [
+                s
+                for s in sessions
+                if str(s.get("state", "")).lower() in {"playing", "buffering"}
+                and str(s.get("media_type", "")).lower() in {"movie", "episode", "track"}
+            ]
+            plex_online = len(playing)
+            for s in playing[:10]:
                 user = s.get("user") or s.get("friendly_name") or s.get("username") or "用户"
                 title = s.get("full_title") or s.get("title") or s.get("grandparent_title") or "播放中"
                 player = s.get("player") or {}
@@ -81,7 +88,7 @@ async def online_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 <strong>Plex 在线</strong>
 {}
             """.format(
-                f"当前 {plex_online} 人在线\n" + ("\n".join(plex_lines) if plex_lines else "")
+                f"当前 {plex_online} 人在播\n" + ("\n".join(plex_lines) if plex_lines else "")
             )
         )
     except Exception as e:
@@ -95,13 +102,26 @@ async def online_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             emby = Emby()
             resp = requests.get(
                 f"{emby.base_url.rstrip('/')}/Sessions",
-                params={"api_key": emby.api_token},
+                params={"api_key": emby.api_token, "ActiveWithinSeconds": 600},
                 timeout=8,
             )
             if resp.ok:
                 sessions = resp.json() or []
-                emby_online = len(sessions)
-                for s in sessions[:10]:
+                # 仅统计正在播放的视频/音频，排除暂停与空闲
+                def is_playing(sess):
+                    now = sess.get("NowPlayingItem") or {}
+                    media_type = str(now.get("MediaType", "")).lower()
+                    if media_type not in {"video", "audio"}:
+                        return False
+                    ps = sess.get("PlayState") or {}
+                    # 有些版本没有 IsPlaying 字段，保守地用 IsPaused 判断
+                    if ps.get("IsPaused") is True:
+                        return False
+                    return True
+
+                playing = [s for s in sessions if is_playing(s)]
+                emby_online = len(playing)
+                for s in playing[:10]:
                     user = s.get("UserName") or s.get("UserId") or "用户"
                     now = s.get("NowPlayingItem") or {}
                     title = now.get("Name") or now.get("SeriesName") or "播放中"
@@ -112,7 +132,7 @@ async def online_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 <strong>Emby 在线</strong>
 {}
             """.format(
-                f"当前 {emby_online} 人在线\n" + ("\n".join(emby_lines) if emby_lines else "")
+                f"当前 {emby_online} 人在播\n" + ("\n".join(emby_lines) if emby_lines else "")
             )
         )
     except Exception as e:
