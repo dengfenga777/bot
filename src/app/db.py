@@ -129,7 +129,15 @@ class DB:
                     FOREIGN KEY (auction_id) REFERENCES auctions (id)
                 );
 
-                -- 线路流量统计表已移除
+                CREATE TABLE IF NOT EXISTS line_traffic_stats(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    line TEXT NOT NULL,
+                    send_bytes INTEGER NOT NULL,
+                    service TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    user_id TEXT DEFAULT NULL,
+                    timestamp TEXT NOT NULL
+                )
 
                 -- 本地聚合的 Emby 观看统计（无需 user_usage_stats 插件）
                 CREATE TABLE IF NOT EXISTS emby_watch_agg(
@@ -1567,4 +1575,72 @@ class DB:
                 "active_premium_users": 0,
                 "premium_plex_users": 0,
                 "premium_emby_users": 0,
+            }
+
+    def get_traffic_statistics(self):
+        """获取全站流量统计（今日/本周/本月），按服务与线路分类"""
+        try:
+            now = datetime.now(settings.TZ)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = today_start - timedelta(days=now.weekday())
+            month_start = today_start.replace(day=1)
+
+            periods = [
+                ("today", today_start.isoformat()),
+                ("week", week_start.isoformat()),
+                ("month", month_start.isoformat()),
+            ]
+
+            result = {}
+            for period_name, start_time in periods:
+                # 总流量
+                total = self.cur.execute(
+                    "SELECT COALESCE(SUM(send_bytes), 0) FROM line_traffic_stats WHERE timestamp >= ?",
+                    (start_time,),
+                ).fetchone()[0]
+
+                # 按服务划分
+                service_rows = self.cur.execute(
+                    """
+                    SELECT service, COALESCE(SUM(send_bytes), 0) as total_traffic
+                    FROM line_traffic_stats 
+                    WHERE timestamp >= ?
+                    GROUP BY service
+                    """,
+                    (start_time,),
+                ).fetchall()
+                emby_total = 0
+                plex_total = 0
+                for svc, t in service_rows:
+                    if (svc or "").lower() == "emby":
+                        emby_total = t
+                    elif (svc or "").lower() == "plex":
+                        plex_total = t
+
+                # 按线路划分
+                line_rows = self.cur.execute(
+                    """
+                    SELECT line, COALESCE(SUM(send_bytes), 0) as total_traffic
+                    FROM line_traffic_stats 
+                    WHERE timestamp >= ?
+                    GROUP BY line
+                    ORDER BY total_traffic DESC
+                    """,
+                    (start_time,),
+                ).fetchall()
+
+                result[period_name] = {
+                    "total": total,
+                    "emby": emby_total,
+                    "plex": plex_total,
+                    "lines": [{"line": ln, "traffic": tr} for ln, tr in line_rows],
+                }
+
+            return result
+        except Exception as e:
+            logger.error(f"Error getting comprehensive traffic statistics: {e}")
+            return {
+                "today": {"total": 0, "emby": 0, "plex": 0, "lines": []},
+                "week": {"total": 0, "emby": 0, "plex": 0, "lines": []},
+                "month": {"total": 0, "emby": 0, "plex": 0, "lines": []},
             }

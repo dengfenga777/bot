@@ -403,59 +403,7 @@ async def bind_emby_account(
         logger.debug("数据库连接已关闭")
 
 
-@router.get("/emby_lines", response_model=EmbyLinesResponse)
-@require_telegram_auth
-async def get_emby_lines(
-    request: Request,
-    telegram_user: TelegramUser = Depends(get_telegram_user),
-):
-    """获取可用的Emby线路列表"""
-    db = DB()
-    # 获取 emby 用户信息，确认是否是 premium 用户
-    emby_info = db.get_emby_info_by_tg_id(telegram_user.id)
-    if not emby_info:
-        logger.warning(
-            f"用户 {telegram_user.username or telegram_user.id} 未绑定 Emby 账户"
-        )
-        return EmbyLinesResponse(
-            success=False, message="您未绑定 Emby 账户，无法查看线路", lines=[]
-        )
-    is_premium = emby_info[8] == 1
-
-    # 基础线路
-    available_lines = settings.STREAM_BACKEND.copy()
-    line_infos = []
-
-    # 添加基础线路信息
-    for line in available_lines:
-        line_infos.append(
-            EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
-        )
-
-    # 如果是premium用户，直接添加所有高级线路
-    if is_premium:
-        for line in settings.PREMIUM_STREAM_BACKEND:
-            line_infos.append(
-                EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
-            )
-    # 如果不是premium用户，检查免费高级线路
-    elif settings.PREMIUM_FREE:
-        # 从Redis缓存获取免费高级线路列表
-        from app.cache import free_premium_lines_cache
-
-        free_premium_lines = free_premium_lines_cache.get("free_lines")
-        free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
-
-        for line in free_premium_lines:
-            line_infos.append(
-                EmbyLineInfo(
-                    name=line, tags=get_line_tags(line) + ["PREMIUM"], is_premium=True
-                )
-            )
-
-    return EmbyLinesResponse(
-        lines=line_infos, success=True, message="获取 Emby 线路列表成功"
-    )
+## 线路列表与绑定相关接口已移除
 
 
 @router.post("/bind/emby_line", response_model=BaseResponse)
@@ -465,7 +413,8 @@ async def bind_emby_line(
     data: EmbyLineRequest = Body(...),
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """绑定Emby线路"""
+    """绑定Emby线路（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     tg_id = telegram_user.id
     line = data.line
 
@@ -543,7 +492,8 @@ async def unbind_emby_line(
     request: Request,
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """解绑Emby线路（恢复自动选择）"""
+    """解绑Emby线路（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     tg_id = telegram_user.id
 
     logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解绑 Emby 线路")
@@ -892,7 +842,8 @@ async def bind_plex_line(
     data: PlexLineRequest = Body(...),
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """绑定Plex线路"""
+    """绑定Plex线路（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     tg_id = telegram_user.id
     line = data.line
 
@@ -978,7 +929,8 @@ async def unbind_plex_line(
     request: Request,
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """解绑Plex线路（恢复自动选择）"""
+    """解绑Plex线路（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     tg_id = telegram_user.id
 
     logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解绑 Plex 线路")
@@ -1027,7 +979,8 @@ async def get_lines_generic(
     request: Request,
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """获取可用的线路列表（通用，同时支持Plex和Emby）"""
+    """获取可用的线路列表（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     if service not in ["emby", "plex"]:
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
@@ -1045,7 +998,8 @@ async def bind_line_generic(
     data: dict = Body(...),
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """绑定线路（通用，同时支持Plex和Emby）"""
+    """绑定线路（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     if service not in ["emby", "plex"]:
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
@@ -1068,7 +1022,8 @@ async def unbind_line_generic(
     request: Request,
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """解绑线路（通用，同时支持Plex和Emby）"""
+    """解绑线路（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     if service not in ["emby", "plex"]:
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
@@ -1086,7 +1041,8 @@ async def auth_bind_line(
     data: AuthBindLineRequest = Body(...),
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """认证并绑定线路（通用，同时支持Plex和Emby）"""
+    """认证并绑定线路（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     if service not in ["emby", "plex"]:
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
@@ -1258,7 +1214,8 @@ async def get_emby_lines_by_user(
     request: Request,
     data: dict = Body(...),
 ):
-    """基于用户名获取可用的Emby线路列表（无需认证，仅查询数据库中的用户信息）"""
+    """基于用户名获取可用的Emby线路列表（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     username = data.get("username")
 
     if not username:
@@ -1330,7 +1287,8 @@ async def get_plex_lines_by_user(
     request: Request,
     data: dict = Body(...),
 ):
-    """基于邮箱获取可用的Plex线路列表（无需认证，仅查询数据库中的用户信息）"""
+    """基于邮箱获取可用的Plex线路列表（功能已移除）"""
+    raise HTTPException(status_code=404, detail="线路绑定功能已移除")
     email = data.get("email")
 
     if not email:
@@ -1578,71 +1536,4 @@ async def get_all_users(
         db.close()
 
 
-@router.post("/lines/{service}/current", response_model=CurrentLineResponse)
-@require_telegram_auth
-async def get_current_bound_line(
-    service: str,
-    request: Request,
-    data: dict = Body(...),
-):
-    """获取用户当前绑定的线路信息（基于用户名/邮箱）"""
-    if service not in ["emby", "plex"]:
-        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
-
-    db = DB()
-    try:
-        if service == "emby":
-            username = data.get("username")
-            if not username:
-                return CurrentLineResponse(success=False, message="用户名不能为空")
-
-            # 查询Emby用户信息
-            emby_info = db.get_emby_info_by_emby_username(username)
-            if not emby_info:
-                return CurrentLineResponse(
-                    success=False, message="该用户未在系统中注册"
-                )
-
-            current_line = emby_info[7]  # emby_line字段是第8列(索引7)
-            if current_line:
-                return CurrentLineResponse(
-                    success=True,
-                    line=current_line,
-                    message=f"用户 {username} 当前绑定线路: {current_line}",
-                )
-            else:
-                return CurrentLineResponse(
-                    success=True, line=None, message=f"用户 {username} 未绑定任何线路"
-                )
-
-        else:  # plex
-            email = data.get("email")
-            if not email:
-                return CurrentLineResponse(success=False, message="邮箱不能为空")
-
-            # 查询Plex用户信息
-            plex_info = db.get_plex_info_by_plex_email(email)
-            if not plex_info:
-                return CurrentLineResponse(
-                    success=False, message="该用户未在系统中注册"
-                )
-
-            current_line = plex_info[8]  # plex_line字段是第9列(索引8)
-            if current_line:
-                return CurrentLineResponse(
-                    success=True,
-                    line=current_line,
-                    message=f"用户 {email} 当前绑定线路: {current_line}",
-                )
-            else:
-                return CurrentLineResponse(
-                    success=True, line=None, message=f"用户 {email} 未绑定任何线路"
-                )
-
-    except Exception as e:
-        logger.error(f"获取用户当前绑定线路时发生错误: {str(e)}")
-        return CurrentLineResponse(
-            success=False, message=f"获取当前绑定线路失败: {str(e)}"
-        )
-    finally:
-        db.close()
+## 线路绑定相关接口已移除

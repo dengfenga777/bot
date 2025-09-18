@@ -10,6 +10,8 @@ from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from datetime import datetime, timedelta
+from typing import Optional
 
 router = APIRouter(prefix="/api", tags=["rankings"])
 
@@ -289,3 +291,142 @@ async def get_combined_watched_time_rankings(
 
 
     # 流量排行榜相关接口已移除
+
+
+@router.get("/rankings/traffic/plex")
+@require_telegram_auth
+async def get_plex_traffic_rankings(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+):
+    """获取 Plex 流量排行榜数据（按用户名聚合）"""
+    try:
+        tz = settings.TZ
+        now = datetime.now(tz)
+        # 解析时间范围
+        if start_date and end_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date).replace(tzinfo=tz, hour=0, minute=0, second=0, microsecond=0)
+                end_dt = datetime.fromisoformat(end_date).replace(tzinfo=tz, hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            except Exception:
+                raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
+        else:
+            start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_dt = start_dt + timedelta(days=1)
+
+        start_iso = start_dt.isoformat()
+        end_iso = end_dt.isoformat()
+
+        db = DB()
+        results = []
+        try:
+            rows = db.cur.execute(
+                """
+                SELECT username, COALESCE(SUM(send_bytes), 0) AS total_traffic
+                FROM line_traffic_stats
+                WHERE LOWER(service) = 'plex' AND timestamp >= ? AND timestamp < ?
+                GROUP BY username
+                ORDER BY total_traffic DESC
+                LIMIT 100
+                """,
+                (start_iso, end_iso),
+            ).fetchall()
+
+            for username, total in rows:
+                info = db.get_plex_info_by_plex_username(username)
+                tg_id = info[1] if info else None
+                is_premium = bool(info[9]) if info and len(info) > 9 and info[9] is not None else False
+                avatar = Plex.get_user_avatar_by_username(username)
+                results.append(
+                    {
+                        "name": username,
+                        "traffic": int(total or 0),
+                        "avatar": avatar,
+                        "is_premium": is_premium,
+                        "is_self": bool(tg_id == user.id) if tg_id is not None else False,
+                    }
+                )
+
+            logger.info(
+                f"{user.username or user.first_name or user.id} 获取Plex流量排行榜数据成功"
+            )
+            return {"traffic_rank_plex": results}
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取Plex流量排行榜数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取Plex流量排行榜失败")
+
+
+@router.get("/rankings/traffic/emby")
+@require_telegram_auth
+async def get_emby_traffic_rankings(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+):
+    """获取 Emby 流量排行榜数据（按用户名聚合）"""
+    try:
+        tz = settings.TZ
+        now = datetime.now(tz)
+        # 解析时间范围
+        if start_date and end_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date).replace(tzinfo=tz, hour=0, minute=0, second=0, microsecond=0)
+                end_dt = datetime.fromisoformat(end_date).replace(tzinfo=tz, hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            except Exception:
+                raise HTTPException(status_code=400, detail="日期格式应为 YYYY-MM-DD")
+        else:
+            start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_dt = start_dt + timedelta(days=1)
+
+        start_iso = start_dt.isoformat()
+        end_iso = end_dt.isoformat()
+
+        db = DB()
+        results = []
+        try:
+            rows = db.cur.execute(
+                """
+                SELECT username, COALESCE(SUM(send_bytes), 0) AS total_traffic
+                FROM line_traffic_stats
+                WHERE LOWER(service) = 'emby' AND timestamp >= ? AND timestamp < ?
+                GROUP BY username
+                ORDER BY total_traffic DESC
+                LIMIT 100
+                """,
+                (start_iso, end_iso),
+            ).fetchall()
+
+            emby = Emby()
+            for username, total in rows:
+                info = db.get_emby_info_by_emby_username(username)
+                tg_id = info[2] if info else None
+                is_premium = bool(info[8]) if info and len(info) > 8 and info[8] is not None else False
+                avatar = emby.get_user_avatar_by_username(username, from_emby=False)
+                results.append(
+                    {
+                        "name": username,
+                        "traffic": int(total or 0),
+                        "avatar": avatar,
+                        "is_premium": is_premium,
+                        "is_self": bool(tg_id == user.id) if tg_id is not None else False,
+                    }
+                )
+
+            logger.info(
+                f"{user.username or user.first_name or user.id} 获取Emby流量排行榜数据成功"
+            )
+            return {"traffic_rank_emby": results}
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取Emby流量排行榜数据失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取Emby流量排行榜失败")

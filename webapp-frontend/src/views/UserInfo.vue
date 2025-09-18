@@ -200,7 +200,7 @@
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
-                <span>绑定线路：</span>
+                <span>当前线路：</span>
               </div>
               <div class="line-selector-wrapper">
                 <plex-line-selector 
@@ -341,7 +341,7 @@
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
-                <span>绑定线路：</span>
+                <span>当前线路：</span>
               </div>
               <div class="line-selector-wrapper">
                 <emby-line-selector 
@@ -694,8 +694,7 @@
 <script>
 import { getUserInfo } from '@/api'
 import { getSystemStatus } from '@/services/systemService'
-import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
-import PlexLineSelector from '@/components/PlexLineSelector.vue'
+// 线路选择组件已移除
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
 import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
@@ -711,8 +710,7 @@ import { formatTraffic } from '@/utils/format.js'
 export default {
   name: 'UserInfo',
   components: {
-    EmbyLineSelector,
-    PlexLineSelector,
+    
     NsfwDialog,
     DonationDialog,
     CreditsTransferDialog,
