@@ -272,12 +272,14 @@ class DBBase:
                 self.cur.execute(sql)
             except Exception:
                 pass
-        self.cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_invitation_owner_status ON invitation(owner, is_used, expires_at)"
-        )
-        self.cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_invitation_expires_at ON invitation(expires_at)"
-        )
+        for sql in [
+            "CREATE INDEX IF NOT EXISTS idx_invitation_owner_status ON invitation(owner, is_used, expires_at)",
+            "CREATE INDEX IF NOT EXISTS idx_invitation_expires_at ON invitation(expires_at)",
+        ]:
+            try:
+                self.cur.execute(sql)
+            except Exception:
+                pass
         self.con.commit()
         self._migrate_tables()
 
