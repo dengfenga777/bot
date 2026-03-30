@@ -1,0 +1,1673 @@
+/**
+ * MisayaMedia Global Styles
+ * 通用样式类和设计系统变量
+ */
+
+/* ========================================
+   CSS 变量定义
+   ======================================== */
+
+:root {
+  /* 颜色 - 主色调 */
+  --hbo-purple-light: #9D4EDD;
+  --hbo-purple-primary: #7B2CBF;
+  --hbo-purple-deep: #5A189A;
+  --hbo-purple-darkest: #10002B;
+
+  /* 颜色 - 强调色 */
+  --hbo-gold: #FFD60A;
+  --hbo-gold-dark: #FFC300;
+  --hbo-cyan: #06FFA5;
+  --hbo-cyan-dark: #00E68A;
+  --hbo-pink: #FF006E;
+  --hbo-pink-dark: #D90050;
+
+  /* 颜色 - 服务品牌色 */
+  --hbo-orange: #FF9800;
+  --hbo-blue: #2196F3;
+  --hbo-green: #4CAF50;
+
+  /* 颜色 - 背景 */
+  --hbo-bg-black: #000000;
+  --hbo-bg-dark: #0A0A0A;
+  --hbo-bg-purple-dark: #1A0033;
+  --hbo-bg-card: #1E1E1E;
+  --hbo-bg-elevated: #2A2A2A;
+
+  /* 颜色 - 文字 */
+  --hbo-text-primary: #FFFFFF;
+  --hbo-text-secondary: rgba(255, 255, 255, 0.7);
+  --hbo-text-disabled: rgba(255, 255, 255, 0.4);
+
+  /* 颜色 - 边框 */
+  --hbo-border-subtle: rgba(255, 255, 255, 0.1);
+  --hbo-border-medium: rgba(255, 255, 255, 0.2);
+  --hbo-border-strong: rgba(255, 255, 255, 0.3);
+
+  /* 间距 */
+  --hbo-spacing-unit: 8px;
+  --hbo-spacing-1: 4px;
+  --hbo-spacing-2: 8px;
+  --hbo-spacing-3: 12px;
+  --hbo-spacing-4: 16px;
+  --hbo-spacing-5: 20px;
+  --hbo-spacing-6: 24px;
+  --hbo-spacing-8: 32px;
+  --hbo-spacing-10: 40px;
+  --hbo-spacing-12: 48px;
+  --hbo-spacing-16: 64px;
+  --hbo-spacing-20: 80px;
+
+  /* 圆角 */
+  --hbo-radius-sm: 8px;
+  --hbo-radius-md: 12px;
+  --hbo-radius-lg: 16px;
+  --hbo-radius-xl: 20px;
+  --hbo-radius-2xl: 24px;
+  --hbo-radius-full: 9999px;
+
+  /* 阴影 */
+  --hbo-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --hbo-shadow-md: 0 8px 16px rgba(0, 0, 0, 0.15);
+  --hbo-shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.2);
+  --hbo-shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.25);
+  --hbo-shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.3);
+  --hbo-shadow-purple-glow: 0 0 20px rgba(123, 44, 191, 0.4);
+  --hbo-shadow-gold-glow: 0 0 20px rgba(255, 214, 10, 0.4);
+
+  /* 过渡 */
+  --hbo-transition-fast: 150ms;
+  --hbo-transition-base: 250ms;
+  --hbo-transition-slow: 350ms;
+  --hbo-transition-slower: 500ms;
+
+  /* Z-Index */
+  --hbo-z-dropdown: 1000;
+  --hbo-z-sticky: 1020;
+  --hbo-z-fixed: 1030;
+  --hbo-z-modal-backdrop: 1040;
+  --hbo-z-modal: 1050;
+  --hbo-z-popover: 1060;
+  --hbo-z-tooltip: 1070;
+}
+
+/* ========================================
+   全局基础样式
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'PingFang SC', 'Helvetica Neue', Helvetica, 'Microsoft YaHei', Arial, sans-serif;
+  background: var(--hbo-bg-black);
+  color: var(--hbo-text-primary);
+  overflow-x: hidden;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--hbo-bg-dark);
+  border-radius: var(--hbo-radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hbo-purple-primary);
+  border-radius: var(--hbo-radius-full);
+
+  &:hover {
+    background: var(--hbo-purple-light);
+  }
+}
+
+/* ========================================
+   渐变背景样式
+   ======================================== */
+
+.hbo-gradient-primary {
+  background: linear-gradient(135deg, var(--hbo-purple-primary) 0%, var(--hbo-purple-deep) 100%);
+}
+
+.hbo-gradient-primary-hover {
+  background: linear-gradient(135deg, var(--hbo-purple-light) 0%, var(--hbo-purple-primary) 100%);
+}
+
+.hbo-gradient-hero {
+  background: linear-gradient(180deg, var(--hbo-purple-darkest) 0%, var(--hbo-purple-deep) 50%, var(--hbo-purple-primary) 100%);
+}
+
+.hbo-gradient-gold {
+  background: linear-gradient(135deg, var(--hbo-gold) 0%, var(--hbo-gold-dark) 100%);
+}
+
+.hbo-gradient-animated {
+  background: linear-gradient(270deg, #7B2CBF, #5A189A, #9D4EDD);
+  background-size: 600% 600%;
+  animation: hbo-gradient-shift 10s ease infinite;
+}
+
+@keyframes hbo-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ========================================
+   卡片样式
+   ======================================== */
+
+.hbo-card {
+  background: var(--hbo-bg-card);
+  border-radius: var(--hbo-radius-xl);
+  padding: var(--hbo-spacing-6);
+  box-shadow: var(--hbo-shadow-lg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--hbo-border-subtle);
+  transition: all var(--hbo-transition-base) cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--hbo-shadow-2xl);
+  }
+}
+
+.hbo-card-gradient {
+  background: linear-gradient(135deg, var(--hbo-purple-primary) 0%, var(--hbo-purple-deep) 100%);
+  color: var(--hbo-text-primary);
+  border-radius: var(--hbo-radius-xl);
+  padding: var(--hbo-spacing-6);
+  box-shadow: var(--hbo-shadow-purple-glow);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 100%);
+    pointer-events: none;
+  }
+}
+
+.hbo-card-glass {
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--hbo-border-subtle);
+  border-radius: var(--hbo-radius-xl);
+  padding: var(--hbo-spacing-6);
+  box-shadow: var(--hbo-shadow-lg);
+}
+
+/* ========================================
+   文字样式
+   ======================================== */
+
+.hbo-text-gold {
+  color: var(--hbo-gold);
+}
+
+.hbo-text-cyan {
+  color: var(--hbo-cyan);
+}
+
+.hbo-text-pink {
+  color: var(--hbo-pink);
+}
+
+.hbo-text-purple {
+  color: var(--hbo-purple-primary);
+}
+
+.hbo-text-gradient {
+  background: linear-gradient(135deg, var(--hbo-purple-light), var(--hbo-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+/* ========================================
+   动画效果
+   ======================================== */
+
+@keyframes hbo-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.hbo-floating {
+  animation: hbo-float 3s ease-in-out infinite;
+}
+
+@keyframes hbo-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.hbo-pulsing {
+  animation: hbo-pulse 2s ease-in-out infinite;
+}
+
+@keyframes hbo-scan {
+  0% {
+    box-shadow: 0 0 0 0 rgba(123, 44, 191, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(123, 44, 191, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(123, 44, 191, 0);
+  }
+}
+
+.hbo-scan-effect {
+  animation: hbo-scan 2s infinite;
+}
+
+@keyframes hbo-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.hbo-shimmer {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+    animation: hbo-shimmer 2s infinite;
+  }
+}
+
+/* ========================================
+   工具类
+   ======================================== */
+
+/* 间距工具类 */
+.hbo-p-1 { padding: var(--hbo-spacing-1); }
+.hbo-p-2 { padding: var(--hbo-spacing-2); }
+.hbo-p-3 { padding: var(--hbo-spacing-3); }
+.hbo-p-4 { padding: var(--hbo-spacing-4); }
+.hbo-p-5 { padding: var(--hbo-spacing-5); }
+.hbo-p-6 { padding: var(--hbo-spacing-6); }
+.hbo-p-8 { padding: var(--hbo-spacing-8); }
+
+.hbo-m-1 { margin: var(--hbo-spacing-1); }
+.hbo-m-2 { margin: var(--hbo-spacing-2); }
+.hbo-m-3 { margin: var(--hbo-spacing-3); }
+.hbo-m-4 { margin: var(--hbo-spacing-4); }
+.hbo-m-5 { margin: var(--hbo-spacing-5); }
+.hbo-m-6 { margin: var(--hbo-spacing-6); }
+.hbo-m-8 { margin: var(--hbo-spacing-8); }
+
+.hbo-mb-2 { margin-bottom: var(--hbo-spacing-2); }
+.hbo-mb-3 { margin-bottom: var(--hbo-spacing-3); }
+.hbo-mb-4 { margin-bottom: var(--hbo-spacing-4); }
+.hbo-mb-6 { margin-bottom: var(--hbo-spacing-6); }
+
+.hbo-mt-2 { margin-top: var(--hbo-spacing-2); }
+.hbo-mt-3 { margin-top: var(--hbo-spacing-3); }
+.hbo-mt-4 { margin-top: var(--hbo-spacing-4); }
+.hbo-mt-6 { margin-top: var(--hbo-spacing-6); }
+
+/* 圆角工具类 */
+.hbo-rounded-sm { border-radius: var(--hbo-radius-sm); }
+.hbo-rounded-md { border-radius: var(--hbo-radius-md); }
+.hbo-rounded-lg { border-radius: var(--hbo-radius-lg); }
+.hbo-rounded-xl { border-radius: var(--hbo-radius-xl); }
+.hbo-rounded-2xl { border-radius: var(--hbo-radius-2xl); }
+.hbo-rounded-full { border-radius: var(--hbo-radius-full); }
+
+/* 阴影工具类 */
+.hbo-shadow-sm { box-shadow: var(--hbo-shadow-sm); }
+.hbo-shadow-md { box-shadow: var(--hbo-shadow-md); }
+.hbo-shadow-lg { box-shadow: var(--hbo-shadow-lg); }
+.hbo-shadow-xl { box-shadow: var(--hbo-shadow-xl); }
+.hbo-shadow-2xl { box-shadow: var(--hbo-shadow-2xl); }
+.hbo-shadow-purple-glow { box-shadow: var(--hbo-shadow-purple-glow); }
+.hbo-shadow-gold-glow { box-shadow: var(--hbo-shadow-gold-glow); }
+
+/* Flex 工具类 */
+.hbo-flex { display: flex; }
+.hbo-flex-col { flex-direction: column; }
+.hbo-flex-row { flex-direction: row; }
+.hbo-items-center { align-items: center; }
+.hbo-justify-center { justify-content: center; }
+.hbo-justify-between { justify-content: space-between; }
+.hbo-justify-around { justify-content: space-around; }
+.hbo-gap-2 { gap: var(--hbo-spacing-2); }
+.hbo-gap-3 { gap: var(--hbo-spacing-3); }
+.hbo-gap-4 { gap: var(--hbo-spacing-4); }
+.hbo-gap-6 { gap: var(--hbo-spacing-6); }
+
+/* 过渡工具类 */
+.hbo-transition-all {
+  transition: all var(--hbo-transition-base) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hbo-transition-fast {
+  transition: all var(--hbo-transition-fast) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hbo-transition-slow {
+  transition: all var(--hbo-transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover 效果工具类 */
+.hbo-hover-lift {
+  transition: transform var(--hbo-transition-base) cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+.hbo-hover-scale {
+  transition: transform var(--hbo-transition-base) cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+/* ========================================
+   特殊组件样式
+   ======================================== */
+
+/* 排行榜徽章 */
+.hbo-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--hbo-radius-full);
+  font-weight: 700;
+  font-size: 16px;
+
+  &.rank-1 {
+    background: linear-gradient(135deg, rgba(255, 214, 10, 0.3) 0%, rgba(255, 195, 0, 0.2) 100%);
+    border: 2px solid var(--hbo-gold);
+    color: var(--hbo-gold);
+  }
+
+  &.rank-2 {
+    background: rgba(192, 192, 192, 0.2);
+    border: 2px solid #C0C0C0;
+    color: #C0C0C0;
+  }
+
+  &.rank-3 {
+    background: rgba(205, 127, 50, 0.2);
+    border: 2px solid #CD7F32;
+    color: #CD7F32;
+  }
+
+  &.rank-other {
+    background: var(--hbo-bg-elevated);
+    border: 2px solid var(--hbo-border-medium);
+    color: var(--hbo-text-secondary);
+  }
+}
+
+/* 统计数字 */
+.hbo-stat-number {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.2;
+  background: linear-gradient(135deg, var(--hbo-purple-light), var(--hbo-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 页面容器 */
+.hbo-page-container {
+  min-height: 100vh;
+  padding: var(--hbo-spacing-6);
+  padding-bottom: 100px; /* 为底部导航留空间 */
+  background: var(--hbo-bg-black);
+
+  @media (max-width: 600px) {
+    padding: var(--hbo-spacing-4);
+    padding-bottom: 90px;
+  }
+}
+
+.hbo-content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 页面标题 */
+.hbo-page-title {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: var(--hbo-spacing-3);
+  background: linear-gradient(135deg, var(--hbo-purple-light), var(--hbo-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  @media (max-width: 600px) {
+    font-size: 24px;
+  }
+}
+
+.hbo-page-subtitle {
+  font-size: 16px;
+  color: var(--hbo-text-secondary);
+  margin-bottom: var(--hbo-spacing-6);
+
+  @media (max-width: 600px) {
+    font-size: 14px;
+  }
+}
+
+/* ========================================
+   响应式断点辅助类
+   ======================================== */
+
+.hbo-hide-xs {
+  @media (max-width: 599px) {
+    display: none !important;
+  }
+}
+
+.hbo-hide-sm-and-up {
+  @media (min-width: 600px) {
+    display: none !important;
+  }
+}
+
+.hbo-hide-md-and-up {
+  @media (min-width: 960px) {
+    display: none !important;
+  }
+}
+
+/* ========================================
+   加载和空状态
+   ======================================== */
+
+.hbo-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: var(--hbo-spacing-4);
+}
+
+.hbo-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+  color: var(--hbo-text-secondary);
+
+  .hbo-empty-icon {
+    font-size: 64px;
+    opacity: 0.5;
+    margin-bottom: var(--hbo-spacing-4);
+  }
+
+  .hbo-empty-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: var(--hbo-spacing-2);
+    color: var(--hbo-text-primary);
+  }
+
+  .hbo-empty-description {
+    font-size: 14px;
+  }
+}
+
+/* ========================================
+   HBO Dialog 全局样式
+   ======================================== */
+
+/* 覆盖Vuetify Dialog默认样式 */
+.v-dialog > .v-overlay__content > .v-card {
+  background: rgba(15, 15, 20, 0.95) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(123, 44, 191, 0.4);
+  border-radius: var(--hbo-radius-xl) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 214, 10, 0.1),
+              var(--hbo-shadow-purple-glow);
+  position: relative;
+  overflow: hidden;
+
+  /* 顶部渐变条 */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg,
+      var(--hbo-purple-primary) 0%,
+      var(--hbo-gold) 50%,
+      var(--hbo-purple-primary) 100%
+    );
+    z-index: 1;
+  }
+
+  /* Dialog标题样式 */
+  .v-card-title {
+    background: linear-gradient(135deg,
+      rgba(123, 44, 191, 0.3) 0%,
+      rgba(90, 24, 154, 0.2) 100%
+    );
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(123, 44, 191, 0.3);
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--hbo-gold) !important;
+    padding: 24px 24px 20px 24px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+
+    /* 标题中的图标 */
+    .v-icon {
+      color: var(--hbo-gold) !important;
+      filter: drop-shadow(0 2px 4px rgba(255, 214, 10, 0.4));
+    }
+  }
+
+  /* Dialog内容样式 */
+  .v-card-text {
+    padding: 24px;
+    color: var(--hbo-text-primary);
+    font-size: 15px;
+    line-height: 1.6;
+
+    /* 强调文本 */
+    strong {
+      color: var(--hbo-gold);
+      font-weight: 600;
+    }
+
+    /* 错误提示 */
+    .error-message {
+      color: var(--hbo-error);
+      background: rgba(255, 23, 68, 0.1);
+      border: 1px solid rgba(255, 23, 68, 0.3);
+      border-radius: var(--hbo-radius-md);
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    /* 加载状态 */
+    .v-progress-circular {
+      color: var(--hbo-purple-primary);
+    }
+
+    /* 输入框样式 */
+    .v-text-field,
+    .v-select,
+    .v-textarea {
+      .v-field {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(123, 44, 191, 0.3);
+        border-radius: var(--hbo-radius-md);
+
+        &:hover {
+          border-color: rgba(255, 214, 10, 0.5);
+        }
+
+        &.v-field--focused {
+          border-color: var(--hbo-gold);
+          box-shadow: 0 0 0 2px rgba(255, 214, 10, 0.2);
+        }
+      }
+
+      .v-field__input {
+        color: var(--hbo-text-primary);
+      }
+
+      .v-label {
+        color: var(--hbo-text-secondary);
+      }
+    }
+  }
+
+  /* Dialog操作按钮区域 */
+  .v-card-actions {
+    padding: 16px 24px 24px 24px;
+    background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.2) 100%
+    );
+
+    /* 取消按钮 */
+    .v-btn:not(.v-btn--elevated) {
+      color: var(--hbo-text-secondary);
+      border: 1px solid rgba(123, 44, 191, 0.3);
+      border-radius: var(--hbo-radius-lg);
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: rgba(123, 44, 191, 0.2);
+        border-color: var(--hbo-purple-primary);
+        color: var(--hbo-purple-light);
+      }
+    }
+
+    /* 确认按钮 */
+    .v-btn--elevated,
+    .v-btn[color="primary"],
+    .v-btn[color="gold"],
+    .v-btn[color="success"] {
+      background: linear-gradient(135deg,
+        var(--hbo-purple-primary) 0%,
+        var(--hbo-purple-deep) 100%
+      ) !important;
+      color: #ffffff !important;
+      border: 1px solid var(--hbo-gold);
+      border-radius: var(--hbo-radius-lg);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 12px rgba(123, 44, 191, 0.4);
+      transition: all 0.3s ease;
+
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg,
+          var(--hbo-purple-light) 0%,
+          var(--hbo-purple-primary) 100%
+        ) !important;
+        border-color: var(--hbo-gold);
+        box-shadow: 0 6px 16px rgba(255, 214, 10, 0.4);
+        transform: translateY(-2px);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* 按钮中的loading图标 */
+      .v-progress-circular {
+        color: #ffffff !important;
+      }
+    }
+  }
+
+  /* Dialog中的列表样式 */
+  .v-list {
+    background: transparent;
+
+    .v-list-item {
+      border-radius: var(--hbo-radius-md);
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(123, 44, 191, 0.2);
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: rgba(123, 44, 191, 0.15);
+        border-color: rgba(255, 214, 10, 0.3);
+        transform: translateX(4px);
+      }
+
+      .v-list-item-title {
+        color: var(--hbo-text-primary);
+        font-weight: 500;
+      }
+
+      .v-list-item-subtitle {
+        color: var(--hbo-text-secondary);
+      }
+    }
+  }
+
+  /* Dialog中的卡片样式 */
+  .v-card .v-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(123, 44, 191, 0.2);
+    border-radius: var(--hbo-radius-lg);
+  }
+
+  /* Dialog中的分隔线 */
+  .v-divider {
+    border-color: rgba(123, 44, 191, 0.3);
+  }
+
+  /* Dialog中的Chip样式 */
+  .v-chip {
+    background: rgba(123, 44, 191, 0.2);
+    border: 1px solid rgba(123, 44, 191, 0.3);
+    color: var(--hbo-purple-light);
+
+    &.v-chip--variant-elevated {
+      background: linear-gradient(135deg,
+        var(--hbo-purple-primary) 0%,
+        var(--hbo-purple-deep) 100%
+      );
+      border-color: var(--hbo-gold);
+      color: #ffffff;
+    }
+  }
+
+  /* Dialog中的Alert样式 */
+  .v-alert {
+    border-radius: var(--hbo-radius-md);
+    border-left: 4px solid;
+
+    &.v-alert--variant-tonal {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    &[type="error"] {
+      border-left-color: var(--hbo-error);
+      background: rgba(255, 23, 68, 0.1);
+    }
+
+    &[type="warning"] {
+      border-left-color: var(--hbo-warning);
+      background: rgba(255, 152, 0, 0.1);
+    }
+
+    &[type="success"] {
+      border-left-color: var(--hbo-success);
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    &[type="info"] {
+      border-left-color: var(--hbo-info);
+      background: rgba(33, 150, 243, 0.1);
+    }
+  }
+}
+
+/* Snackbar (toast通知) 样式 */
+.v-snackbar__wrapper {
+  .v-snackbar__content {
+    background: linear-gradient(135deg,
+      rgba(123, 44, 191, 0.95) 0%,
+      rgba(90, 24, 154, 0.95) 100%
+    ) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 214, 10, 0.3);
+    border-radius: var(--hbo-radius-lg) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    color: #ffffff;
+    font-weight: 500;
+
+    &[color="success"] {
+      background: linear-gradient(135deg,
+        rgba(76, 175, 80, 0.95) 0%,
+        rgba(56, 142, 60, 0.95) 100%
+      ) !important;
+      border-color: var(--hbo-cyan);
+    }
+
+    &[color="error"] {
+      background: linear-gradient(135deg,
+        rgba(244, 67, 54, 0.95) 0%,
+        rgba(211, 47, 47, 0.95) 100%
+      ) !important;
+      border-color: var(--hbo-pink);
+    }
+
+    &[color="warning"] {
+      background: linear-gradient(135deg,
+        rgba(255, 152, 0, 0.95) 0%,
+        rgba(245, 124, 0, 0.95) 100%
+      ) !important;
+      border-color: var(--hbo-gold);
+    }
+  }
+}
+
+/* ========================================
+   全局 Vuetify 组件样式（应用级别）
+   ======================================== */
+
+/* 全局按钮样式 */
+.v-btn {
+  text-transform: none;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  border-radius: var(--hbo-radius-lg);
+  transition: all var(--hbo-transition-base) ease;
+
+  /* 主要按钮（紫色渐变） */
+  &.v-btn--variant-elevated,
+  &[color="primary"] {
+    background: linear-gradient(135deg,
+      var(--hbo-purple-primary) 0%,
+      var(--hbo-purple-deep) 100%
+    ) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 214, 10, 0.3);
+    box-shadow: 0 4px 12px rgba(123, 44, 191, 0.4);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg,
+        var(--hbo-purple-light) 0%,
+        var(--hbo-purple-primary) 100%
+      ) !important;
+      border-color: var(--hbo-gold);
+      box-shadow: 0 6px 16px rgba(255, 214, 10, 0.4);
+      transform: translateY(-2px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0px);
+    }
+  }
+
+  /* 金色按钮（强调操作） */
+  &[color="gold"],
+  &[color="accent"] {
+    background: linear-gradient(135deg,
+      var(--hbo-gold) 0%,
+      var(--hbo-gold-dark) 100%
+    ) !important;
+    color: var(--hbo-purple-darkest) !important;
+    border: 1px solid var(--hbo-purple-primary);
+    box-shadow: 0 4px 12px rgba(255, 214, 10, 0.4);
+    font-weight: 700;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg,
+        #FFE55C 0%,
+        var(--hbo-gold) 100%
+      ) !important;
+      box-shadow: 0 6px 16px rgba(255, 214, 10, 0.6);
+      transform: translateY(-2px);
+    }
+  }
+
+  /* 成功按钮（青色） */
+  &[color="success"] {
+    background: linear-gradient(135deg,
+      var(--hbo-cyan) 0%,
+      var(--hbo-cyan-dark) 100%
+    ) !important;
+    color: var(--hbo-purple-darkest) !important;
+    border: 1px solid rgba(6, 255, 165, 0.3);
+    box-shadow: 0 4px 12px rgba(6, 255, 165, 0.4);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg,
+        #3AFFB9 0%,
+        var(--hbo-cyan) 100%
+      ) !important;
+      box-shadow: 0 6px 16px rgba(6, 255, 165, 0.6);
+      transform: translateY(-2px);
+    }
+  }
+
+  /* 错误按钮（粉色） */
+  &[color="error"] {
+    background: linear-gradient(135deg,
+      var(--hbo-pink) 0%,
+      var(--hbo-pink-dark) 100%
+    ) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 0, 110, 0.3);
+    box-shadow: 0 4px 12px rgba(255, 0, 110, 0.4);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg,
+        #FF3385 0%,
+        var(--hbo-pink) 100%
+      ) !important;
+      box-shadow: 0 6px 16px rgba(255, 0, 110, 0.6);
+      transform: translateY(-2px);
+    }
+  }
+
+  /* 扁平按钮（透明背景） */
+  &.v-btn--variant-text,
+  &.v-btn--variant-plain {
+    color: var(--hbo-purple-light);
+
+    &:hover:not(:disabled) {
+      background: rgba(123, 44, 191, 0.1) !important;
+      color: var(--hbo-gold);
+    }
+  }
+
+  /* 轮廓按钮 */
+  &.v-btn--variant-outlined {
+    border: 2px solid var(--hbo-purple-primary);
+    color: var(--hbo-purple-light);
+
+    &:hover:not(:disabled) {
+      background: rgba(123, 44, 191, 0.15) !important;
+      border-color: var(--hbo-gold);
+      color: var(--hbo-gold);
+    }
+  }
+
+  /* 禁用状态 */
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* 按钮图标 */
+  .v-icon {
+    transition: transform var(--hbo-transition-base) ease;
+  }
+
+  &:hover:not(:disabled) .v-icon {
+    transform: scale(1.1);
+  }
+}
+
+/* 全局输入框样式 */
+.v-text-field,
+.v-textarea {
+  .v-field {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(123, 44, 191, 0.3);
+    border-radius: var(--hbo-radius-md);
+    transition: all var(--hbo-transition-base) ease;
+
+    &:hover {
+      border-color: rgba(123, 44, 191, 0.5);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    &.v-field--focused {
+      border-color: var(--hbo-gold);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 3px rgba(255, 214, 10, 0.15);
+    }
+
+    &.v-field--error {
+      border-color: var(--hbo-pink);
+      box-shadow: 0 0 0 3px rgba(255, 0, 110, 0.15);
+    }
+  }
+
+  .v-field__input {
+    color: var(--hbo-text-primary);
+    font-size: 15px;
+
+    &::placeholder {
+      color: var(--hbo-text-disabled);
+      opacity: 1;
+    }
+  }
+
+  .v-label {
+    color: var(--hbo-text-secondary);
+    font-weight: 500;
+
+    &.v-field-label--floating {
+      color: var(--hbo-purple-light);
+    }
+  }
+
+  .v-field__outline {
+    display: none;
+  }
+
+  /* 输入框图标 */
+  .v-field__prepend-inner,
+  .v-field__append-inner {
+    .v-icon {
+      color: var(--hbo-purple-light);
+    }
+  }
+
+  /* 错误信息 */
+  .v-messages {
+    color: var(--hbo-pink);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* 计数器 */
+  .v-counter {
+    color: var(--hbo-text-disabled);
+    font-size: 12px;
+  }
+}
+
+/* 全局选择框样式 */
+.v-select {
+  .v-field {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(123, 44, 191, 0.3);
+    border-radius: var(--hbo-radius-md);
+    transition: all var(--hbo-transition-base) ease;
+
+    &:hover {
+      border-color: rgba(123, 44, 191, 0.5);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    &.v-field--focused {
+      border-color: var(--hbo-gold);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 3px rgba(255, 214, 10, 0.15);
+    }
+  }
+
+  .v-field__input {
+    color: var(--hbo-text-primary);
+  }
+
+  .v-select__selection-text {
+    color: var(--hbo-text-primary);
+  }
+
+  /* 下拉箭头 */
+  .v-field__append-inner {
+    .v-icon {
+      color: var(--hbo-purple-light);
+      transition: transform var(--hbo-transition-base) ease;
+    }
+  }
+
+  &.v-select--active-menu {
+    .v-field__append-inner .v-icon {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+/* 选择框下拉菜单 */
+.v-menu > .v-overlay__content {
+  background: rgba(15, 15, 20, 0.98) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(123, 44, 191, 0.4);
+  border-radius: var(--hbo-radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+
+  .v-list {
+    background: transparent;
+    padding: 8px;
+
+    .v-list-item {
+      border-radius: var(--hbo-radius-md);
+      margin-bottom: 4px;
+      transition: all var(--hbo-transition-fast) ease;
+
+      &:hover {
+        background: rgba(123, 44, 191, 0.2);
+      }
+
+      &.v-list-item--active {
+        background: linear-gradient(135deg,
+          rgba(123, 44, 191, 0.3) 0%,
+          rgba(90, 24, 154, 0.3) 100%
+        );
+        border-left: 3px solid var(--hbo-gold);
+
+        .v-list-item-title {
+          color: var(--hbo-gold);
+          font-weight: 600;
+        }
+      }
+
+      .v-list-item-title {
+        color: var(--hbo-text-primary);
+        font-size: 14px;
+      }
+
+      .v-list-item-subtitle {
+        color: var(--hbo-text-secondary);
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+/* 全局复选框样式 */
+.v-checkbox {
+  .v-selection-control__wrapper {
+    .v-icon {
+      color: var(--hbo-purple-primary);
+      transition: all var(--hbo-transition-base) ease;
+    }
+  }
+
+  .v-selection-control {
+    &:hover .v-selection-control__wrapper .v-icon {
+      color: var(--hbo-purple-light);
+    }
+  }
+
+  &.v-selection-control--dirty {
+    .v-selection-control__wrapper .v-icon {
+      color: var(--hbo-gold) !important;
+      filter: drop-shadow(0 0 4px rgba(255, 214, 10, 0.5));
+    }
+  }
+
+  .v-label {
+    color: var(--hbo-text-primary);
+    font-size: 14px;
+  }
+}
+
+/* 全局单选框样式 */
+.v-radio {
+  .v-selection-control__wrapper {
+    .v-icon {
+      color: var(--hbo-purple-primary);
+      transition: all var(--hbo-transition-base) ease;
+    }
+  }
+
+  .v-selection-control {
+    &:hover .v-selection-control__wrapper .v-icon {
+      color: var(--hbo-purple-light);
+    }
+  }
+
+  &.v-selection-control--dirty {
+    .v-selection-control__wrapper .v-icon {
+      color: var(--hbo-gold) !important;
+      filter: drop-shadow(0 0 4px rgba(255, 214, 10, 0.5));
+    }
+  }
+
+  .v-label {
+    color: var(--hbo-text-primary);
+    font-size: 14px;
+  }
+}
+
+/* 全局开关样式 */
+.v-switch {
+  .v-switch__track {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(123, 44, 191, 0.3);
+    opacity: 1;
+  }
+
+  .v-switch__thumb {
+    background: var(--hbo-text-disabled);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  &.v-switch--dirty {
+    .v-switch__track {
+      background: linear-gradient(90deg,
+        var(--hbo-purple-primary) 0%,
+        var(--hbo-purple-deep) 100%
+      );
+      border-color: var(--hbo-gold);
+    }
+
+    .v-switch__thumb {
+      background: var(--hbo-gold);
+      box-shadow: 0 2px 8px rgba(255, 214, 10, 0.6);
+    }
+  }
+
+  .v-label {
+    color: var(--hbo-text-primary);
+    font-size: 14px;
+  }
+}
+
+/* 全局滑块样式 */
+.v-slider {
+  .v-slider-track__background {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .v-slider-track__fill {
+    background: linear-gradient(90deg,
+      var(--hbo-purple-primary) 0%,
+      var(--hbo-gold) 100%
+    );
+  }
+
+  .v-slider-thumb__surface {
+    background: var(--hbo-gold);
+    border: 2px solid var(--hbo-purple-primary);
+    box-shadow: 0 2px 8px rgba(255, 214, 10, 0.4);
+
+    &::before {
+      background: var(--hbo-gold);
+    }
+  }
+
+  &:hover {
+    .v-slider-thumb__surface {
+      box-shadow: 0 4px 12px rgba(255, 214, 10, 0.6);
+    }
+  }
+}
+
+/* 全局进度条样式 */
+.v-progress-linear {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--hbo-radius-full);
+  overflow: hidden;
+
+  .v-progress-linear__determinate,
+  .v-progress-linear__indeterminate {
+    background: linear-gradient(90deg,
+      var(--hbo-purple-primary) 0%,
+      var(--hbo-gold) 50%,
+      var(--hbo-cyan) 100%
+    );
+    background-size: 200% 100%;
+    animation: hbo-progress-gradient 2s ease infinite;
+  }
+}
+
+@keyframes hbo-progress-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 全局加载动画样式 */
+.v-progress-circular {
+  color: var(--hbo-purple-primary);
+
+  circle {
+    stroke: var(--hbo-gold);
+    stroke-linecap: round;
+  }
+
+  &[color="primary"] circle {
+    stroke: var(--hbo-purple-primary);
+  }
+
+  &[color="gold"] circle {
+    stroke: var(--hbo-gold);
+  }
+
+  &[color="success"] circle {
+    stroke: var(--hbo-cyan);
+  }
+}
+
+/* 全局Chip样式 */
+.v-chip {
+  background: rgba(123, 44, 191, 0.2);
+  border: 1px solid rgba(123, 44, 191, 0.3);
+  color: var(--hbo-purple-light);
+  border-radius: var(--hbo-radius-lg);
+  font-weight: 600;
+  font-size: 13px;
+  transition: all var(--hbo-transition-base) ease;
+
+  &:hover {
+    background: rgba(123, 44, 191, 0.3);
+    border-color: var(--hbo-gold);
+    transform: translateY(-1px);
+  }
+
+  &.v-chip--variant-elevated {
+    background: linear-gradient(135deg,
+      var(--hbo-purple-primary) 0%,
+      var(--hbo-purple-deep) 100%
+    );
+    border-color: var(--hbo-gold);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(123, 44, 191, 0.4);
+  }
+
+  &[color="gold"] {
+    background: rgba(255, 214, 10, 0.2);
+    border-color: var(--hbo-gold);
+    color: var(--hbo-gold);
+  }
+
+  &[color="success"] {
+    background: rgba(6, 255, 165, 0.2);
+    border-color: var(--hbo-cyan);
+    color: var(--hbo-cyan);
+  }
+
+  .v-icon {
+    color: inherit;
+  }
+}
+
+/* 全局Alert样式 */
+.v-alert {
+  border-radius: var(--hbo-radius-lg);
+  border-left: 4px solid;
+  backdrop-filter: blur(10px);
+  font-weight: 500;
+
+  &[type="error"] {
+    background: rgba(255, 0, 110, 0.15);
+    border-left-color: var(--hbo-pink);
+    color: #FFCCE0;
+
+    .v-icon {
+      color: var(--hbo-pink);
+    }
+  }
+
+  &[type="warning"] {
+    background: rgba(255, 152, 0, 0.15);
+    border-left-color: var(--hbo-gold);
+    color: #FFE8B3;
+
+    .v-icon {
+      color: var(--hbo-gold);
+    }
+  }
+
+  &[type="success"] {
+    background: rgba(6, 255, 165, 0.15);
+    border-left-color: var(--hbo-cyan);
+    color: #CCFFF0;
+
+    .v-icon {
+      color: var(--hbo-cyan);
+    }
+  }
+
+  &[type="info"] {
+    background: rgba(123, 44, 191, 0.15);
+    border-left-color: var(--hbo-purple-primary);
+    color: #E8D4FF;
+
+    .v-icon {
+      color: var(--hbo-purple-light);
+    }
+  }
+
+  .v-alert__content {
+    font-size: 14px;
+  }
+}
+
+/* 全局Tooltip样式 */
+.v-tooltip > .v-overlay__content {
+  background: rgba(15, 15, 20, 0.98) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(123, 44, 191, 0.4);
+  border-radius: var(--hbo-radius-md);
+  color: var(--hbo-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* 全局Badge样式 */
+.v-badge__badge {
+  background: linear-gradient(135deg,
+    var(--hbo-pink) 0%,
+    var(--hbo-pink-dark) 100%
+  );
+  border: 2px solid var(--hbo-bg-dark);
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(255, 0, 110, 0.4);
+
+  &[color="gold"] {
+    background: linear-gradient(135deg,
+      var(--hbo-gold) 0%,
+      var(--hbo-gold-dark) 100%
+    );
+    color: var(--hbo-purple-darkest);
+  }
+
+  &[color="success"] {
+    background: linear-gradient(135deg,
+      var(--hbo-cyan) 0%,
+      var(--hbo-cyan-dark) 100%
+    );
+    color: var(--hbo-purple-darkest);
+  }
+}
+
+/* 全局Tab样式 */
+.v-tabs {
+  .v-tab {
+    color: var(--hbo-text-secondary);
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    transition: all var(--hbo-transition-base) ease;
+
+    &:hover {
+      color: var(--hbo-purple-light);
+      background: rgba(123, 44, 191, 0.1);
+    }
+
+    &.v-tab--selected {
+      color: var(--hbo-gold);
+    }
+
+    .v-icon {
+      transition: transform var(--hbo-transition-base) ease;
+    }
+
+    &:hover .v-icon {
+      transform: scale(1.1);
+    }
+  }
+
+  .v-tabs-slider,
+  .v-tab-item--selected {
+    background: var(--hbo-gold);
+  }
+}
+
+/* ========================================
+   页面内容容器
+   ======================================== */
+
+.content-wrapper {
+  padding-top: var(--hbo-spacing-2) !important;
+}
+
+/* ========================================
+   统一导航Tab样式 (hbo-nav-tabs)
+   用于页面内的统一导航条
+   ======================================== */
+
+.hbo-nav-tabs-container {
+  background: var(--hbo-bg-card);
+  border-radius: var(--hbo-radius-xl);
+  padding: 6px;
+  margin-bottom: var(--hbo-spacing-4);
+  box-shadow: var(--hbo-shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hbo-nav-tabs {
+  background: transparent !important;
+  min-height: 48px;
+
+  .v-slide-group__content {
+    gap: 4px;
+    justify-content: center !important;
+  }
+}
+
+.hbo-nav-tab {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.3px;
+  text-transform: none !important;
+  color: var(--hbo-text-secondary) !important;
+  min-width: auto !important;
+  padding: 0 16px !important;
+  height: 40px !important;
+  border-radius: var(--hbo-radius-lg) !important;
+  transition: all var(--hbo-transition-base) ease !important;
+  margin: 0 2px;
+
+  .v-btn__content {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px;
+    height: 100%;
+  }
+
+  .v-icon {
+    font-size: 18px !important;
+    opacity: 0.8;
+    transition: all var(--hbo-transition-base) ease;
+  }
+
+  &:hover:not(.v-tab--selected) {
+    color: var(--hbo-text-primary) !important;
+    background: rgba(123, 44, 191, 0.15) !important;
+
+    .v-icon {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
+
+  &.v-tab--selected {
+    color: var(--hbo-gold) !important;
+    background: transparent !important;
+    font-weight: 700 !important;
+
+    .v-icon {
+      color: var(--hbo-gold) !important;
+      opacity: 1;
+    }
+  }
+}
+
+/* Tab下划线指示器 */
+.hbo-nav-tabs .v-tabs-slider-wrapper {
+  bottom: 0;
+  height: 3px !important;
+}
+
+.hbo-nav-tabs .v-tabs-slider {
+  background: var(--hbo-gold) !important;
+  border-radius: 2px;
+}
+
+/* 全局Divider样式 */
+.v-divider {
+  border-color: rgba(123, 44, 191, 0.3);
+  opacity: 1;
+}
+
+/* 全局List样式（非Dialog内） */
+.v-list:not(.v-dialog .v-list) {
+  background: transparent;
+
+  .v-list-item {
+    border-radius: var(--hbo-radius-md);
+    transition: all var(--hbo-transition-fast) ease;
+
+    &:hover {
+      background: rgba(123, 44, 191, 0.1);
+    }
+
+    &.v-list-item--active {
+      background: rgba(123, 44, 191, 0.2);
+      border-left: 3px solid var(--hbo-gold);
+    }
+
+    .v-list-item-title {
+      color: var(--hbo-text-primary);
+      font-weight: 500;
+    }
+
+    .v-list-item-subtitle {
+      color: var(--hbo-text-secondary);
+    }
+  }
+}
+
+/* 全局Data Table样式 */
+.v-data-table {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 44, 191, 0.2);
+  border-radius: var(--hbo-radius-lg);
+
+  .v-data-table-header {
+    background: rgba(123, 44, 191, 0.1);
+
+    th {
+      color: var(--hbo-gold);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 12px;
+      border-bottom: 2px solid rgba(255, 214, 10, 0.3);
+    }
+  }
+
+  tbody tr {
+    &:hover {
+      background: rgba(123, 44, 191, 0.05);
+    }
+
+    td {
+      color: var(--hbo-text-primary);
+      border-bottom: 1px solid rgba(123, 44, 191, 0.1);
+    }
+  }
+
+  .v-data-table-footer {
+    background: rgba(123, 44, 191, 0.05);
+    border-top: 1px solid rgba(123, 44, 191, 0.2);
+
+    .v-select {
+      .v-field {
+        background: rgba(255, 255, 255, 0.05);
+      }
+    }
+  }
+}

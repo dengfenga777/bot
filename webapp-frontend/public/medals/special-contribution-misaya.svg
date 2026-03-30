@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="90" y1="54" x2="422" y2="458" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE28A"/>
+      <stop offset="1" stop-color="#B56A00"/>
+    </linearGradient>
+    <linearGradient id="core" x1="156" y1="126" x2="356" y2="378" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF6D6"/>
+      <stop offset="1" stop-color="#F4B942"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#160F08"/>
+  <circle cx="256" cy="236" r="142" fill="url(#bg)"/>
+  <circle cx="256" cy="236" r="118" fill="url(#core)" stroke="#FFF6D6" stroke-width="8"/>
+  <path d="M171 348L119 470L207 423L256 486L305 423L393 470L341 348" fill="#7B1E00"/>
+  <path d="M178 348L136 446L208 405L256 458L304 405L376 446L334 348" fill="#D74E09"/>
+  <path d="M179 185L217 185L256 248L295 185L333 185L333 288L301 288L301 236L274 279L238 279L211 236L211 288L179 288L179 185Z" fill="#7B2500"/>
+  <path d="M128 114C165 82 206 66 256 60C306 66 347 82 384 114" stroke="#FFF2C4" stroke-width="16" stroke-linecap="round"/>
+  <text x="256" y="118" text-anchor="middle" fill="#7B2500" font-size="40" font-weight="700" font-family="Arial, sans-serif" letter-spacing="8">MISAYA</text>
+  <text x="256" y="330" text-anchor="middle" fill="#FFF7E0" font-size="26" font-weight="700" font-family="Arial, sans-serif" letter-spacing="4">SPECIAL</text>
+</svg>

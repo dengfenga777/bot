@@ -1,0 +1,95 @@
+server {
+    listen 80;
+    server_name plex.misaya.org;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name plex.misaya.org;
+
+    ssl_certificate     /etc/letsencrypt/live/plex.misaya.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/plex.misaya.org/privkey.pem;
+
+    # 基本反代优化，防止缓存/截断搞坏 XML
+    proxy_buffering          off;
+    proxy_request_buffering  off;
+    proxy_redirect           off;
+    proxy_http_version       1.1;
+
+    proxy_connect_timeout 3600;
+    proxy_send_timeout    3600;
+    proxy_read_timeout    3600;
+    send_timeout          3600;
+
+    # 允许大请求（封面、日志等）
+    client_max_body_size 0;
+
+    # WebSocket 支持
+    proxy_set_header Upgrade    $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+
+    # === 动态路由变量 ===
+    set $backend_addr "";
+    set $upstream_host "";
+
+    location / {
+        # === Lua智能路由 ===
+        access_by_lua_block {
+            local redis = require "resty.redis"
+
+            -- IP到域名的映射（Plex VPS）
+            local IP_TO_DOMAIN = {
+                ["154.3.36.75:443"] = "hk.stream.misaya.org",
+                ["143.42.64.122:443"] = "sg.stream.misaya.org",
+                ["154.31.114.167:443"] = "jp.stream.misaya.org",
+                ["45.12.134.98:443"] = "us.stream.misaya.org",
+            }
+
+            -- 默认使用本地Plex
+            ngx.var.backend_addr = "http://127.0.0.1:32400"
+            ngx.var.upstream_host = ngx.var.host
+
+            -- 获取Plex Token (X-Plex-Token参数或header)
+            local plex_token = ngx.var.arg_X-Plex-Token or
+                               ngx.var["arg_X-Plex-Token"] or
+                               ngx.req.get_headers()["X-Plex-Token"]
+
+            if not plex_token or plex_token == "" then
+                return
+            end
+
+            -- 查询Redis
+            local red = redis:new()
+            red:set_timeout(1000)
+            local ok = red:connect("127.0.0.1", 6379)
+
+            if not ok then return end
+
+            -- Plex使用token查询，键格式: plex_line:<plex_token>
+            local line = red:get("plex_line:" .. plex_token)
+            red:set_keepalive(10000, 100)
+
+            if not line or line == ngx.null then return end
+
+            -- 设置后端和Host
+            local domain = IP_TO_DOMAIN[line]
+            if domain then
+                ngx.var.backend_addr = "https://" .. line
+                ngx.var.upstream_host = domain
+                ngx.log(ngx.INFO, "Plex路由: token -> ", domain)
+            end
+        }
+
+        proxy_pass $backend_addr;
+        proxy_set_header Host $upstream_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # === VPS SSL配置 ===
+        proxy_ssl_verify off;
+        proxy_ssl_server_name on;
+    }
+}

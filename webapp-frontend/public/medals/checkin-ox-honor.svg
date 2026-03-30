@@ -1,0 +1,27 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ox-bg" x1="86" y1="58" x2="424" y2="454" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF1B4"/>
+      <stop offset="1" stop-color="#A85510"/>
+    </linearGradient>
+    <linearGradient id="ox-core" x1="148" y1="118" x2="364" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8E2"/>
+      <stop offset="1" stop-color="#F4B942"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="146" y1="334" x2="366" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8E1F04"/>
+      <stop offset="1" stop-color="#D96B14"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#140C08"/>
+  <circle cx="256" cy="222" r="146" fill="url(#ox-bg)"/>
+  <circle cx="256" cy="222" r="120" fill="url(#ox-core)" stroke="#FFF4D1" stroke-width="8"/>
+  <path d="M145 337L111 470L200 422L256 488L312 422L401 470L367 337" fill="url(#ribbon)"/>
+  <path d="M165 148C182 115 208 94 241 84L220 140L165 148Z" fill="#8C2A07"/>
+  <path d="M347 148C330 115 304 94 271 84L292 140L347 148Z" fill="#8C2A07"/>
+  <path d="M196 174C217 157 236 149 256 149C276 149 295 157 316 174C332 187 340 208 340 235C340 277 309 312 256 335C203 312 172 277 172 235C172 208 180 187 196 174Z" fill="#7B2500"/>
+  <path d="M213 197H242L256 223L270 197H299V281H272V239L262 258H250L240 239V281H213V197Z" fill="#FFEBC1"/>
+  <text x="256" y="117" text-anchor="middle" fill="#7B2500" font-size="34" font-weight="700" font-family="Arial, sans-serif" letter-spacing="6">CHECKIN</text>
+  <text x="256" y="371" text-anchor="middle" fill="#FFF7E0" font-size="62" font-weight="800" font-family="Arial, sans-serif">牛</text>
+  <text x="256" y="419" text-anchor="middle" fill="#FFF7E0" font-size="24" font-weight="700" font-family="Arial, sans-serif" letter-spacing="4">TOP HONOR</text>
+</svg>

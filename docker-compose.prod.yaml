@@ -1,0 +1,73 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: pmsmanagebot-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - pmsmanagebot_net
+
+  # Bot 进程 - 运行 Telegram Bot + APScheduler 定时任务
+  bot:
+    image: pmsmanagebot:latest
+    container_name: pmsmanagebot-bot
+    restart: unless-stopped
+    env_file:
+      - ./data/.env
+    environment:
+      - WEBAPP_ENABLE=False
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./start_bot.sh:/app/start_bot.sh:ro
+    command: /app/start_bot.sh
+    networks:
+      - pmsmanagebot_net
+      - tautulli_default
+
+  # WebApp 进程 - 运行 FastAPI (gunicorn)
+  app:
+    image: pmsmanagebot:latest
+    container_name: pmsmanagebot-app
+    restart: unless-stopped
+    env_file:
+      - ./data/.env
+    environment:
+      - WEBAPP_URL=https://tgbot.misaya.org
+      - WORKERS=4
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "5000:5000"
+    networks:
+      - pmsmanagebot_net
+      - tautulli_default
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  pmsmanagebot_net:
+    driver: bridge
+  tautulli_default:
+    external: true
