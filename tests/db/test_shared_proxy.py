@@ -9,6 +9,7 @@ from app.shared_proxy import (
     SharedProxyValidationError,
     build_shared_proxy_profile,
     normalize_shared_proxy_domain,
+    _resolve_bound_line_target,
     sync_user_media_routes,
 )
 
@@ -150,3 +151,16 @@ def test_transfer_tg_binding_assets_moves_shared_proxy(test_db):
     profile = build_shared_proxy_profile(test_db.get_shared_proxy_profile(new_tg_id))
     assert profile["domain"] == "proxy.example.net"
     assert profile["enabled"] is True
+
+
+def test_resolve_bound_line_target_rejects_legacy_alias(monkeypatch):
+    monkeypatch.setattr("app.shared_proxy.LineMapping.get_url", lambda value: "")
+
+    assert _resolve_bound_line_target("Infinity") is None
+    assert _resolve_bound_line_target("1") is None
+
+
+def test_resolve_bound_line_target_accepts_domain(monkeypatch):
+    monkeypatch.setattr("app.shared_proxy.LineMapping.get_url", lambda value: "")
+
+    assert _resolve_bound_line_target("hk.stream.example.com") == "hk.stream.example.com:443"

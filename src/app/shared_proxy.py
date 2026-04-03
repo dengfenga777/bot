@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 from app.config import settings
 from app.log import logger
+from app.line_mapping import LineMapping
 from app.redis_sync import redis_line_sync
 
 
@@ -116,6 +117,41 @@ def build_upstream_target(
         require_https=require_https,
     )
     return f"{host}:{port}"
+
+
+def _resolve_bound_line_target(raw_target: Optional[str]) -> Optional[str]:
+    """将已绑定的线路值解析为可用于网关的 host:port。
+
+    历史数据里可能保存的是类似 `Infinity`、`1` 这样的显示别名。
+    这类值在当前环境下无法直接作为上游地址使用，应该回退到默认入口，
+    否则会被错误地写入 Redis，导致媒体网关返回 502。
+    """
+    if raw_target is None:
+        return None
+
+    text = str(raw_target).strip()
+    if not text:
+        return None
+
+    mapped_target = LineMapping.get_url(text) or text
+    candidate = str(mapped_target).strip()
+    if not candidate:
+        return None
+
+    if "://" in candidate or ":" in candidate:
+        return build_upstream_target(candidate, allow_ip=True)
+
+    try:
+        ipaddress.ip_address(candidate)
+        return build_upstream_target(candidate, allow_ip=True)
+    except ValueError:
+        pass
+
+    if "." not in candidate:
+        logger.info("忽略无法解析的历史线路别名: %s", text)
+        return None
+
+    return build_upstream_target(candidate, allow_ip=True)
 
 
 def _iter_reserved_hosts() -> set[str]:
@@ -257,13 +293,13 @@ def sync_user_media_routes(db: Any, tg_id: int) -> tuple[bool, list[str]]:
 
     plex_info = db.get_plex_info_by_tg_id(tg_id)
     if plex_info and plex_info[4]:
-        plex_target = shared_target or build_upstream_target(plex_info[8], allow_ip=True)
+        plex_target = shared_target or _resolve_bound_line_target(plex_info[8])
         if not redis_line_sync.sync_plex_line(plex_info[4], plex_target):
             errors.append("Plex")
 
     emby_info = db.get_emby_info_by_tg_id(tg_id)
     if emby_info and emby_info[1]:
-        emby_target = shared_target or build_upstream_target(emby_info[7], allow_ip=True)
+        emby_target = shared_target or _resolve_bound_line_target(emby_info[7])
         if not redis_line_sync.sync_emby_line(emby_info[1], emby_target):
             errors.append("Emby")
 
