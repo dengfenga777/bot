@@ -88,6 +88,8 @@ docker compose -f docker-compose.prod.yaml up -d --build
 - `bot`
 - `app`
 
+现在 `docker-compose.prod.yaml` 已经补上 `build: .`，后续执行 `up -d --build` 时会真正重建 `pmsmanagebot:latest`，不会再出现“容器重启了但镜像还是旧代码”的情况。
+
 ### 4. 查看运行状态
 
 ```bash
@@ -116,8 +118,89 @@ docker compose -f docker-compose.prod.yaml logs -f bot
 - `app` 容器通过 Gunicorn 启动 FastAPI WebApp
 - `bot` 容器负责 Telegram Bot 与定时任务
 - 前端静态资源可以通过项目自身提供，也可以配合 Nginx 做静态分发
+- 当前仓库的 `Dockerfile` 会把前端构建产物一起打进镜像，常规更新不需要再手动同步 Nginx 静态目录
 
-如果你使用 Nginx 托管静态文件，更新前端或勋章资源后，记得同步静态目录。
+如果你的服务器没有 `tautulli_default` 网络，可以先执行：
+
+```bash
+docker network create tautulli_default
+```
+
+## 共享线路部署
+
+如果你要启用“用户自定义反代域名 / 共享线路切换”，推荐使用仓库里新增的 `OpenResty` 媒体网关方案，而不是直接改宿主机 Nginx 模块。
+
+原因很简单：
+
+- 标准 Nginx 默认没有 Lua 模块
+- 共享线路的动态路由依赖 Lua 读取 Redis
+- 宿主机保留现有 Nginx 负责证书和 443，风险最低
+
+### 推荐架构
+
+```text
+Cloudflare / 用户请求
+        |
+        v
+宿主机 Nginx :443
+        |
+        v
+OpenResty 媒体网关 :18080 / :18081
+        |
+        +--> 本地 Plex / Emby
+        |
+        +--> Redis 中记录的用户线路
+        |
+        +--> 用户自定义共享反代域名
+```
+
+### 仓库内新增内容
+
+- `docker-compose.media-gateway.yaml`：媒体网关容器编排
+- `openresty/`：OpenResty 镜像与 Lua 路由脚本
+- `nginx_configs/host_proxy/`：宿主机标准 Nginx 前置配置样板
+
+### 媒体网关启动方式
+
+```bash
+docker compose -f docker-compose.media-gateway.yaml build
+docker compose -f docker-compose.media-gateway.yaml up -d
+```
+
+默认约定如下：
+
+- OpenResty 监听宿主机 `127.0.0.1:18080` 处理 Plex
+- OpenResty 监听宿主机 `127.0.0.1:18081` 处理 Emby
+- Redis 走 `127.0.0.1:6379`
+- 本地 Plex 默认入口是 `http://127.0.0.1:32400`
+- 本地 Emby 默认入口是 `http://127.0.0.1:8096`
+
+如有需要可以在 `docker-compose.media-gateway.yaml` 中自行调整。
+
+### 宿主机 Nginx 需要做什么
+
+把 Plex / Emby 的宿主机站点配置替换为：
+
+- `nginx_configs/host_proxy/plex.misaya.org.conf`
+- `nginx_configs/host_proxy/emby.misaya.org.conf`
+
+它们不再做 Lua 路由，只把请求转发给本地 OpenResty 媒体网关。
+
+### 关键环境要求
+
+- `data/.env` 中要有可用的 `PLEX_API_TOKEN`
+- Redis 必须能从宿主机 `127.0.0.1:6379` 访问
+- 用户自定义共享反代域名必须已经完成 HTTPS 反代并且能从服务器侧连通
+
+### 回滚方式
+
+如果要回滚，只需要：
+
+1. 停掉 `media-gateway`
+2. 把宿主机 Plex / Emby Nginx 配置切回原来的直连版
+3. `nginx -t && systemctl reload nginx`
+
+Bot、数据库、Redis 和 WebApp 数据都不需要回滚。
 
 ## 本地开发
 

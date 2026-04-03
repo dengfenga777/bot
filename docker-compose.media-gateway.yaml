@@ -1,0 +1,18 @@
+services:
+  media-gateway:
+    build:
+      context: .
+      dockerfile: openresty/Dockerfile
+    image: pmsmanagebot-media-gateway:latest
+    container_name: pmsmanagebot-media-gateway
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - ./data/.env
+    environment:
+      - REDIS_HOST=127.0.0.1
+      - REDIS_PORT=6379
+      - PLEX_LOCAL_ORIGIN=http://127.0.0.1:32400
+      - EMBY_LOCAL_ORIGIN=http://127.0.0.1:8096
+      - PLEX_PUBLIC_HOST=plex.misaya.org
+      - EMBY_PUBLIC_HOST=emby.misaya.org

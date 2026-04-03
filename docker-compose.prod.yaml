@@ -19,6 +19,7 @@ services:
 
   # Bot 进程 - 运行 Telegram Bot + APScheduler 定时任务
   bot:
+    build: .
     image: pmsmanagebot:latest
     container_name: pmsmanagebot-bot
     restart: unless-stopped
@@ -40,6 +41,7 @@ services:
 
   # WebApp 进程 - 运行 FastAPI (gunicorn)
   app:
+    build: .
     image: pmsmanagebot:latest
     container_name: pmsmanagebot-app
     restart: unless-stopped
