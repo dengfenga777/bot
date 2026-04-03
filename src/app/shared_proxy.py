@@ -161,6 +161,8 @@ def _iter_reserved_hosts() -> set[str]:
         settings.EMBY_BASE_URL,
         settings.EMBY_ENTRY_URL,
         settings.WEBAPP_URL,
+        settings.PLEX_ORIGIN_HOST,
+        settings.EMBY_ORIGIN_HOST,
     ]
     for url in urls:
         if not url:

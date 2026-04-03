@@ -55,6 +55,8 @@ local function get_route_target()
     return tostring(target)
 end
 
+route_common.attach_request_signature("emby", ngx.var.host)
+
 local backend_addr, proxy_host = route_common.resolve_upstream(
     get_route_target(),
     EMBY_SERVER,

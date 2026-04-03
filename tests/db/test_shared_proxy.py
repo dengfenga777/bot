@@ -19,11 +19,16 @@ def test_normalize_shared_proxy_domain_rejects_reserved_host(monkeypatch):
     monkeypatch.setattr("app.shared_proxy.settings.EMBY_BASE_URL", "https://emby.example.com", raising=False)
     monkeypatch.setattr("app.shared_proxy.settings.EMBY_ENTRY_URL", "https://emby.example.com", raising=False)
     monkeypatch.setattr("app.shared_proxy.settings.WEBAPP_URL", "https://webapp.example.com", raising=False)
+    monkeypatch.setattr("app.shared_proxy.settings.PLEX_ORIGIN_HOST", "plex-origin.example.com", raising=False)
+    monkeypatch.setattr("app.shared_proxy.settings.EMBY_ORIGIN_HOST", "emby-origin.example.com", raising=False)
     monkeypatch.setattr("app.shared_proxy.settings.STREAM_BACKEND", ["stream.example.com"], raising=False)
     monkeypatch.setattr("app.shared_proxy.settings.PREMIUM_STREAM_BACKEND", ["premium.example.com"], raising=False)
 
     with pytest.raises(SharedProxyValidationError, match="官方线路冲突"):
         normalize_shared_proxy_domain("https://plex.example.com")
+
+    with pytest.raises(SharedProxyValidationError, match="官方线路冲突"):
+        normalize_shared_proxy_domain("https://plex-origin.example.com")
 
 
 def test_normalize_shared_proxy_domain_accepts_https_domain(monkeypatch, mock_settings):

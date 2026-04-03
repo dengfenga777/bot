@@ -144,14 +144,17 @@ Cloudflare / 用户请求
         v
 宿主机 Nginx :443
         |
-        v
-OpenResty 媒体网关 :18080 / :18081
+        +--> OpenResty 官方入口 :18080 / :18081
+        |         |
+        |         +--> 本地 Plex / Emby
+        |         |
+        |         +--> Redis 中记录的用户线路
+        |         |
+        |         +--> 用户自定义共享反代域名
         |
-        +--> 本地 Plex / Emby
-        |
-        +--> Redis 中记录的用户线路
-        |
-        +--> 用户自定义共享反代域名
+        +--> OpenResty origin 验签入口 :18082 / :18083
+                  |
+                  +--> 本地 Plex / Emby（仅允许验签通过的回源请求）
 ```
 
 ### 仓库内新增内容
@@ -171,6 +174,8 @@ docker compose -f docker-compose.media-gateway.yaml up -d
 
 - OpenResty 监听宿主机 `127.0.0.1:18080` 处理 Plex
 - OpenResty 监听宿主机 `127.0.0.1:18081` 处理 Emby
+- OpenResty 监听宿主机 `127.0.0.1:18082` 处理 Plex origin 回源
+- OpenResty 监听宿主机 `127.0.0.1:18083` 处理 Emby origin 回源
 - Redis 走 `127.0.0.1:6379`
 - 本地 Plex 默认入口是 `http://127.0.0.1:32400`
 - 本地 Emby 默认入口是 `http://127.0.0.1:8096`
@@ -183,14 +188,44 @@ docker compose -f docker-compose.media-gateway.yaml up -d
 
 - `nginx_configs/host_proxy/plex.misaya.org.conf`
 - `nginx_configs/host_proxy/emby.misaya.org.conf`
+- `nginx_configs/host_proxy/plex-origin.misaya.org.conf`
+- `nginx_configs/host_proxy/emby-origin.misaya.org.conf`
 
-它们不再做 Lua 路由，只把请求转发给本地 OpenResty 媒体网关。
+其中：
+
+- `plex.misaya.org` / `emby.misaya.org` 继续作为客户端公开入口
+- `plex-origin.misaya.org` / `emby-origin.misaya.org` 只作为共享线路最终回源
+- origin 入口会校验官方媒体网关附带的验签头，未通过直接返回 `403`
 
 ### 关键环境要求
 
 - `data/.env` 中要有可用的 `PLEX_API_TOKEN`
+- 建议在 `data/.env` 中设置独立的 `MEDIA_ROUTE_SIGNING_SECRET`
 - Redis 必须能从宿主机 `127.0.0.1:6379` 访问
 - 用户自定义共享反代域名必须已经完成 HTTPS 反代并且能从服务器侧连通
+- 用户填写的共享域名不能直接填写 `plex-origin.misaya.org` / `emby-origin.misaya.org`
+
+### 单域名用户反代怎么接
+
+用户在 miniapp 里填写的应该是自己的统一域名，例如 `media.user.com`，不是官方入口，也不是 origin 域名。
+
+仓库里提供了可直接改名套用的样板：
+
+- `nginx_configs/user_proxy/media.user.com.conf.example`
+
+推荐让用户自己的 Nginx 根据官方入口附带的 `X-PMS-Entry-Host` 来分流到对应的 origin 域名，并原样透传以下头：
+
+- `X-PMS-Entry-Host`
+- `X-PMS-Route-Service`
+- `X-PMS-Route-Timestamp`
+- `X-PMS-Route-Signature`
+
+这套模式下：
+
+- 客户端仍然只访问 `plex.misaya.org` / `emby.misaya.org`
+- 官方入口识别用户线路后，把请求转发到用户自己的域名
+- 用户自己的域名再把请求回源到 `plex-origin.misaya.org` / `emby-origin.misaya.org`
+- origin 域名没有合法签名时不会直接放行，因此不能当成公开入口使用
 
 ### 回滚方式
 

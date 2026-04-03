@@ -16,3 +16,6 @@ services:
       - EMBY_LOCAL_ORIGIN=http://127.0.0.1:8096
       - PLEX_PUBLIC_HOST=plex.misaya.org
       - EMBY_PUBLIC_HOST=emby.misaya.org
+      - PLEX_ORIGIN_HOST=${PLEX_ORIGIN_HOST:-plex-origin.misaya.org}
+      - EMBY_ORIGIN_HOST=${EMBY_ORIGIN_HOST:-emby-origin.misaya.org}
+      - MEDIA_ROUTE_SIGN_TTL=${MEDIA_ROUTE_SIGN_TTL:-90}

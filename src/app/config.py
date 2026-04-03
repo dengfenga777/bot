@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     PLEX_API_TOKEN: str = ""
     PLEX_ADMIN_USER: str = ""
     PLEX_ADMIN_EMAIL: str = ""
+    PLEX_PUBLIC_HOST: str = "plex.misaya.org"
+    PLEX_ORIGIN_HOST: str = "plex-origin.misaya.org"
 
     # Overseerr
     OVERSEERR_BASE_URL: str = ""
@@ -91,12 +93,16 @@ class Settings(BaseSettings):
     EMBY_ADMIN_USER: str = ""
     EMBY_USER_TEMPLATE: str = ""
     EMBY_USER_IS_HIDDEN: bool = True  # 新用户是否在登录界面隐藏
+    EMBY_PUBLIC_HOST: str = "emby.misaya.org"
+    EMBY_ORIGIN_HOST: str = "emby-origin.misaya.org"
 
 
     # redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
+    MEDIA_ROUTE_SIGNING_SECRET: str = ""
+    MEDIA_ROUTE_SIGN_TTL: int = 90
 
     # redeem code
     PRIVILEGED_CODES: list[str] = []
