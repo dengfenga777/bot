@@ -15,6 +15,20 @@ class TelegramUser(BaseModel):
     is_premium: bool = False
 
 
+class SharedProxyProfile(BaseModel):
+    """共享反代配置模型"""
+
+    domain: str
+    port: int = 443
+    enabled: bool = False
+    verification_status: str = "unknown"
+    verified_at: Optional[int] = None
+    last_error: Optional[str] = None
+    updated_at: Optional[int] = None
+    target: Optional[str] = None
+    url: Optional[str] = None
+
+
 class UserInfo(BaseModel):
     """用户完整信息模型"""
 
@@ -29,6 +43,7 @@ class UserInfo(BaseModel):
     plex_info: Optional[Dict[str, Any]] = None
     emby_info: Optional[Dict[str, Any]] = None
     overseerr_info: Optional[Dict[str, Any]] = None
+    shared_proxy: Optional[SharedProxyProfile] = None
     is_admin: bool = False
 
 
@@ -168,3 +183,15 @@ class CurrentLineResponse(BaseModel):
     success: bool
     message: str
     line: Optional[str] = None
+
+
+class SharedProxyRequest(BaseModel):
+    """共享反代保存请求"""
+
+    domain: str = Field(..., min_length=1, max_length=255)
+
+
+class SharedProxyResponse(BaseResponse):
+    """共享反代配置响应"""
+
+    shared_proxy: Optional[SharedProxyProfile] = None

@@ -24,6 +24,13 @@ local IP_TO_DOMAIN = {
 -- 缓存用户 token -> username 映射 (使用共享内存)
 local token_cache = ngx.shared.plex_token_cache
 
+local function extract_host(target)
+    if not target or target == "" then
+        return ""
+    end
+    return string.match(target, "^([^:]+)") or ""
+end
+
 -- 使用管理员 token 获取所有用户账户，建立 authToken -> username 映射
 local function build_token_username_map()
     local httpc = http.new()
@@ -263,6 +270,8 @@ local line = get_user_line()
 if line == "" or line == nil then
     -- 空值或 nil 表示使用本地直连
     ngx.var.backend_server = "127.0.0.1:32400"
+    ngx.var.backend_ssl_name = "127.0.0.1"
 else
     ngx.var.backend_server = line
+    ngx.var.backend_ssl_name = extract_host(line)
 end

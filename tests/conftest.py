@@ -44,6 +44,7 @@ def mock_settings(temp_dir: Path):
     mock_config.PLEX_BASE_URL = "https://plex.example.com"
     mock_config.EMBY_BASE_URL = "https://emby.example.com"
     mock_config.EMBY_ENTRY_URL = "https://emby.example.com"
+    mock_config.WEBAPP_URL = "https://webapp.example.com"
     mock_config.LOG_LEVEL = "INFO"
 
     with patch("app.config.settings", mock_config):

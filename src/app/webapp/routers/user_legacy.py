@@ -9,12 +9,20 @@ from app.cache import (
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.redis_sync import redis_line_sync
 from app.config import settings
 from app.db import DB
 from app.emby import Emby
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
+from app.shared_proxy import (
+    SharedProxyValidationError,
+    build_shared_proxy_profile,
+    build_upstream_target,
+    is_shared_proxy_enabled,
+    normalize_shared_proxy_domain,
+    sync_user_media_routes,
+    verify_shared_proxy_target,
+)
 from app.tautulli import Tautulli
 from app.utils.utils import (
     caculate_credits_fund,
@@ -41,12 +49,67 @@ from app.webapp.schemas import (
     PlexLineInfo,
     PlexLineRequest,
     PlexLinesResponse,
+    SharedProxyRequest,
+    SharedProxyResponse,
     TelegramUser,
     UserInfo,
 )
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/api/user", tags=["user"])
+
+
+def _build_route_url(raw_target: Optional[str], default_url: str) -> str:
+    if not raw_target:
+        return default_url
+    target = str(raw_target).strip()
+    if target.startswith(("http://", "https://")):
+        return target
+    return f"https://{target}"
+
+
+def _build_effective_route_info(
+    *,
+    stored_line: Optional[str],
+    default_url: str,
+    shared_profile: Optional[dict],
+) -> dict:
+    if is_shared_proxy_enabled(shared_profile):
+        shared_domain = shared_profile.get("domain")
+        shared_url = shared_profile.get("url") or _build_route_url(
+            shared_profile.get("target"), default_url
+        )
+        return {
+            "effective_line": shared_profile.get("target"),
+            "effective_line_url": shared_url,
+            "effective_line_display_name": f"共享反代 · {shared_domain}",
+            "route_mode": "shared_proxy",
+            "shared_proxy_active": True,
+        }
+
+    if stored_line:
+        return {
+            "effective_line": build_upstream_target(stored_line, allow_ip=True),
+            "effective_line_url": _build_route_url(stored_line, default_url),
+            "effective_line_display_name": LineMapping.get_display_name(stored_line)
+            or stored_line,
+            "route_mode": "custom_line",
+            "shared_proxy_active": False,
+        }
+
+    return {
+        "effective_line": None,
+        "effective_line_url": default_url,
+        "effective_line_display_name": "默认入口",
+        "route_mode": "default",
+        "shared_proxy_active": False,
+    }
+
+
+def _append_route_sync_notice(message: str, sync_errors: list[str]) -> str:
+    if not sync_errors:
+        return message
+    return f"{message}（{', '.join(sync_errors)} 路由缓存同步失败，请稍后重试）"
 
 
 @router.get("/dashboard")
@@ -128,10 +191,12 @@ async def get_user_info(
         is_admin = False
         if tg_id in settings.TG_ADMIN_CHAT_ID:
             is_admin = True
+        shared_profile = build_shared_proxy_profile(db.get_shared_proxy_profile(tg_id))
         user_info = UserInfo(
             tg_id=tg_id,
             is_admin=is_admin,
             display_name=user_name or get_user_name_from_tg_id(tg_id),
+            shared_proxy=shared_profile,
         )
 
         # 获取Plex信息
@@ -148,8 +213,13 @@ async def get_user_info(
 
                 # 获取线路入口 URL
                 plex_line = plex_info[8]
-                plex_line_url = f"https://{plex_line}" if plex_line else settings.PLEX_BASE_URL
+                plex_line_url = _build_route_url(plex_line, settings.PLEX_BASE_URL)
                 plex_line_display = LineMapping.get_display_name(plex_line)
+                plex_effective_route = _build_effective_route_info(
+                    stored_line=plex_line,
+                    default_url=settings.PLEX_BASE_URL,
+                    shared_profile=shared_profile,
+                )
 
                 user_info.plex_info = {
                     "username": plex_info[4],
@@ -163,6 +233,7 @@ async def get_user_info(
                     "premium_expiry": plex_info[10],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    **plex_effective_route,
                 }
                 logger.debug(
                     f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息获取成功，今日流量: {daily_traffic} bytes, Premium流量: {daily_premium_traffic} bytes"
@@ -190,8 +261,15 @@ async def get_user_info(
 
                 # 获取线路入口 URL
                 emby_line = emby_info[7]
-                emby_line_url = f"https://{emby_line}" if emby_line else (settings.EMBY_ENTRY_URL or settings.EMBY_BASE_URL)
+                emby_line_url = _build_route_url(
+                    emby_line, settings.EMBY_ENTRY_URL or settings.EMBY_BASE_URL
+                )
                 emby_line_display = LineMapping.get_display_name(emby_line)
+                emby_effective_route = _build_effective_route_info(
+                    stored_line=emby_line,
+                    default_url=settings.EMBY_ENTRY_URL or settings.EMBY_BASE_URL,
+                    shared_profile=shared_profile,
+                )
 
                 user_info.emby_info = {
                     "username": emby_info[0],
@@ -204,6 +282,7 @@ async def get_user_info(
                     "premium_expiry": emby_info[9],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    **emby_effective_route,
                 }
                 created_at = (
                     Emby().get_user_info_from_username(emby_info[0]).get("date_created")
@@ -302,6 +381,166 @@ async def get_user_info(
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
+
+
+@router.get("/shared-proxy", response_model=SharedProxyResponse)
+@require_telegram_auth
+async def get_shared_proxy(
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取当前用户的共享反代配置。"""
+    tg_id = telegram_user.id
+    db = DB()
+    try:
+        profile = build_shared_proxy_profile(db.get_shared_proxy_profile(tg_id))
+        return SharedProxyResponse(
+            success=True,
+            message="获取共享反代配置成功",
+            shared_proxy=profile,
+        )
+    except Exception as e:
+        logger.error(f"获取共享反代配置失败: {e}")
+        return SharedProxyResponse(success=False, message="获取共享反代配置失败")
+    finally:
+        db.close()
+
+
+@router.post("/shared-proxy", response_model=SharedProxyResponse)
+@require_telegram_auth
+async def save_shared_proxy(
+    request: Request,
+    data: SharedProxyRequest = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """保存共享反代域名并执行连通性校验。"""
+    tg_id = telegram_user.id
+    db = DB()
+    try:
+        current_profile = build_shared_proxy_profile(db.get_shared_proxy_profile(tg_id))
+        host, port = normalize_shared_proxy_domain(data.domain)
+        verified, error_message = await verify_shared_proxy_target(host, port)
+        if not verified:
+            return SharedProxyResponse(
+                success=False,
+                message=error_message or "共享反代校验失败",
+                shared_proxy=current_profile,
+            )
+
+        enabled_flag = bool(current_profile and current_profile.get("enabled"))
+        saved = db.save_shared_proxy_profile(
+            tg_id=tg_id,
+            domain=host,
+            port=port,
+            enabled=enabled_flag,
+            verification_status="verified",
+            verified_at=int(time()),
+            last_error=None,
+        )
+        if not saved:
+            return SharedProxyResponse(success=False, message="保存共享反代配置失败")
+
+        sync_errors: list[str] = []
+        if enabled_flag:
+            _, sync_errors = sync_user_media_routes(db, tg_id)
+
+        profile = build_shared_proxy_profile(db.get_shared_proxy_profile(tg_id))
+        return SharedProxyResponse(
+            success=True,
+            message=_append_route_sync_notice("共享反代配置已保存", sync_errors),
+            shared_proxy=profile,
+        )
+    except SharedProxyValidationError as e:
+        return SharedProxyResponse(success=False, message=str(e))
+    except Exception as e:
+        logger.error(f"保存共享反代配置失败: {e}")
+        return SharedProxyResponse(success=False, message="保存共享反代配置失败")
+    finally:
+        db.close()
+
+
+@router.post("/shared-proxy/enable", response_model=SharedProxyResponse)
+@require_telegram_auth
+async def enable_shared_proxy(
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """启用共享反代线路。"""
+    tg_id = telegram_user.id
+    db = DB()
+    try:
+        profile_row = db.get_shared_proxy_profile(tg_id)
+        if not profile_row:
+            return SharedProxyResponse(success=False, message="请先保存共享反代域名")
+
+        profile = build_shared_proxy_profile(profile_row)
+        verified, error_message = await verify_shared_proxy_target(
+            profile["domain"], profile["port"]
+        )
+        if not verified:
+            db.set_shared_proxy_enabled(
+                tg_id,
+                False,
+                verification_status="failed",
+                last_error=error_message,
+            )
+            return SharedProxyResponse(
+                success=False,
+                message=error_message or "共享反代线路不可用",
+                shared_proxy=build_shared_proxy_profile(db.get_shared_proxy_profile(tg_id)),
+            )
+
+        saved = db.set_shared_proxy_enabled(
+            tg_id,
+            True,
+            verification_status="verified",
+            verified_at=int(time()),
+            last_error=None,
+        )
+        if not saved:
+            return SharedProxyResponse(success=False, message="启用共享反代失败")
+
+        _, sync_errors = sync_user_media_routes(db, tg_id)
+        return SharedProxyResponse(
+            success=True,
+            message=_append_route_sync_notice("共享反代已启用", sync_errors),
+            shared_proxy=build_shared_proxy_profile(db.get_shared_proxy_profile(tg_id)),
+        )
+    except Exception as e:
+        logger.error(f"启用共享反代失败: {e}")
+        return SharedProxyResponse(success=False, message="启用共享反代失败")
+    finally:
+        db.close()
+
+
+@router.post("/shared-proxy/disable", response_model=SharedProxyResponse)
+@require_telegram_auth
+async def disable_shared_proxy(
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """停用共享反代线路，恢复用户原有 Plex / Emby 线路选择。"""
+    tg_id = telegram_user.id
+    db = DB()
+    try:
+        if not db.get_shared_proxy_profile(tg_id):
+            return SharedProxyResponse(success=False, message="当前没有共享反代配置")
+
+        saved = db.set_shared_proxy_enabled(tg_id, False)
+        if not saved:
+            return SharedProxyResponse(success=False, message="停用共享反代失败")
+
+        _, sync_errors = sync_user_media_routes(db, tg_id)
+        return SharedProxyResponse(
+            success=True,
+            message=_append_route_sync_notice("共享反代已停用", sync_errors),
+            shared_proxy=build_shared_proxy_profile(db.get_shared_proxy_profile(tg_id)),
+        )
+    except Exception as e:
+        logger.error(f"停用共享反代失败: {e}")
+        return SharedProxyResponse(success=False, message="停用共享反代失败")
+    finally:
+        db.close()
 
 
 @router.get("/recent-activities")
@@ -705,10 +944,18 @@ async def bind_plex_account(
             _db.add_user_data(tg_id, credits=plex_credits)
 
         _db.con.commit()
+        sync_success, sync_errors = sync_user_media_routes(_db, tg_id)
+        if not sync_success:
+            logger.warning("绑定 Plex 账户后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Plex 账户 {email}"
         )
-        return BaseResponse(success=True, message=f"绑定 Plex 账户 {email} 成功！")
+        return BaseResponse(
+            success=True,
+            message=_append_route_sync_notice(
+                f"绑定 Plex 账户 {email} 成功！", sync_errors
+            ),
+        )
 
     except Exception as e:
         logger.error(f"绑定Plex账户时发生错误: {str(e)}")
@@ -780,11 +1027,17 @@ async def bind_emby_account(
             db.add_user_data(tg_id, credits=emby_credits)
 
         db.con.commit()
+        sync_success, sync_errors = sync_user_media_routes(db, tg_id)
+        if not sync_success:
+            logger.warning("绑定 Emby 账户后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定Emby账户 {emby_username}"
         )
         return BaseResponse(
-            success=True, message=f"绑定 Emby 账户 {emby_username} 成功！"
+            success=True,
+            message=_append_route_sync_notice(
+                f"绑定 Emby 账户 {emby_username} 成功！", sync_errors
+            ),
         )
 
     except Exception as e:
@@ -920,10 +1173,17 @@ async def bind_emby_line(
             )
         emby_user_defined_line_cache.put(str(emby_username).lower(), line)
 
+        sync_success, sync_errors = sync_user_media_routes(db, tg_id)
+        if not sync_success:
+            logger.warning("绑定 Emby 线路后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
+
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Emby 线路 {line}，原线路：{old_line}"
         )
-        return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
+        return BaseResponse(
+            success=True,
+            message=_append_route_sync_notice(f"绑定线路 {line} 成功！", sync_errors),
+        )
 
     except Exception as e:
         logger.error(f"绑定Emby线路时发生错误: {str(e)}")
@@ -967,8 +1227,15 @@ async def unbind_emby_line(
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
 
+        sync_success, sync_errors = sync_user_media_routes(db, tg_id)
+        if not sync_success:
+            logger.warning("解绑 Emby 线路后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
+
         logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 成功解绑 Emby 线路")
-        return BaseResponse(success=True, message="已切换到自动选择线路")
+        return BaseResponse(
+            success=True,
+            message=_append_route_sync_notice("已切换到自动选择线路", sync_errors),
+        )
 
     except Exception as e:
         logger.error(f"解绑 Emby 线路时发生错误: {str(e)}")
@@ -1365,13 +1632,17 @@ async def bind_plex_line(
             )
         plex_user_defined_line_cache.put(str(plex_username).lower(), line)
 
-        # 实时同步到 Nginx 路由 Redis
-        redis_line_sync.sync_plex_line(plex_username, line)
+        sync_success, sync_errors = sync_user_media_routes(db, tg_id)
+        if not sync_success:
+            logger.warning("绑定 Plex 线路后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Plex 线路 {line}，原线路：{old_line}"
         )
-        return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
+        return BaseResponse(
+            success=True,
+            message=_append_route_sync_notice(f"绑定线路 {line} 成功！", sync_errors),
+        )
 
     except Exception as e:
         logger.error(f"绑定 Plex 线路时发生错误: {str(e)}")
@@ -1415,11 +1686,15 @@ async def unbind_plex_line(
         # 删除 redis 缓存
         plex_user_defined_line_cache.delete(str(plex_username).lower())
 
-        # 实时同步到 Nginx 路由 Redis（删除键）
-        redis_line_sync.sync_plex_line(plex_username, None)
+        sync_success, sync_errors = sync_user_media_routes(db, tg_id)
+        if not sync_success:
+            logger.warning("解绑 Plex 线路后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
 
         logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 成功解绑 Plex 线路")
-        return BaseResponse(success=True, message="已切换到自动选择线路")
+        return BaseResponse(
+            success=True,
+            message=_append_route_sync_notice("已切换到自动选择线路", sync_errors),
+        )
 
     except Exception as e:
         logger.error(f"解绑 Plex 线路时发生错误: {str(e)}")
@@ -1588,10 +1863,19 @@ async def _auth_bind_emby_line(
         emby_last_user_defined_line_cache.put(str(username).lower(), binded_line)
     emby_user_defined_line_cache.put(str(username).lower(), line)
 
+    sync_success, sync_errors = sync_user_media_routes(db, tg_id)
+    if not sync_success:
+        logger.warning("认证绑定 Emby 线路后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
+
     logger.info(
         f"用户 {get_user_name_from_tg_id(tg_id)} 为 {username} 成功认证并绑定Emby线路 {line}"
     )
-    return BaseResponse(success=True, message=f"认证并绑定 Emby 线路 {line} 成功！")
+    return BaseResponse(
+        success=True,
+        message=_append_route_sync_notice(
+            f"认证并绑定 Emby 线路 {line} 成功！", sync_errors
+        ),
+    )
 
 
 async def _auth_bind_plex_line(
@@ -1658,13 +1942,19 @@ async def _auth_bind_plex_line(
         plex_last_user_defined_line_cache.put(str(plex_username).lower(), binded_line)
     plex_user_defined_line_cache.put(str(plex_username).lower(), line)
 
-    # 实时同步到 Nginx 路由 Redis
-    redis_line_sync.sync_plex_line(plex_username, line)
+    sync_success, sync_errors = sync_user_media_routes(db, tg_id)
+    if not sync_success:
+        logger.warning("认证绑定 Plex 线路后同步线路失败: tg_id=%s errors=%s", tg_id, sync_errors)
 
     logger.info(
         f"用户 {get_user_name_from_tg_id(tg_id)} 为 {plex_username} 成功认证并绑定 Plex 线路 {line}"
     )
-    return BaseResponse(success=True, message=f"认证并绑定 Plex 线路 {line} 成功！")
+    return BaseResponse(
+        success=True,
+        message=_append_route_sync_notice(
+            f"认证并绑定 Plex 线路 {line} 成功！", sync_errors
+        ),
+    )
 
 
 @router.post("/lines/emby/available", response_model=EmbyLinesResponse)

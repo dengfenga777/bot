@@ -165,6 +165,110 @@
           </v-card-text>
         </v-card>
 
+        <v-card class="user-info-card mb-4 shared-proxy-card">
+          <v-card-title class="card-title-section shared-proxy-title">
+            <v-icon start color="teal-darken-2">mdi-lan-connect</v-icon>
+            共享反代线路
+          </v-card-title>
+          <v-card-text>
+            <div class="shared-proxy-note mb-4">
+              填写你自己的 HTTPS 反代域名，Plex 和 Emby 会共用这条线路。启用后，两边都会优先走这一个域名。
+            </div>
+
+            <v-text-field
+              v-model="sharedProxy.domain"
+              label="反代域名"
+              placeholder="proxy.example.com"
+              variant="outlined"
+              density="comfortable"
+              hide-details="auto"
+              :disabled="sharedProxySubmitting"
+              class="mb-4"
+            ></v-text-field>
+
+            <div class="d-flex justify-space-between mb-3 align-center account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="teal-darken-2" class="mr-2">mdi-check-decagram</v-icon>
+                <span class="label-text">当前状态</span>
+              </div>
+              <div class="d-flex align-center shared-proxy-status-group">
+                <v-chip size="small" :color="sharedProxy.enabled ? 'success' : 'grey'">
+                  {{ sharedProxy.enabled ? '已启用' : '未启用' }}
+                </v-chip>
+                <v-chip size="small" :color="sharedProxyVerificationColor">
+                  {{ sharedProxyVerificationText }}
+                </v-chip>
+              </div>
+            </div>
+
+            <div v-if="sharedProxy.url" class="d-flex justify-space-between mb-3 align-center entrance-url-row account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="deep-orange-darken-1" class="mr-2">mdi-web</v-icon>
+                <span class="label-text">当前域名</span>
+              </div>
+              <div
+                class="entrance-url-chip"
+                @click="copyToClipboard(sharedProxy.url)"
+                title="点击复制域名"
+              >
+                {{ sharedProxy.url }}
+                <v-icon size="x-small" class="ml-1">mdi-content-copy</v-icon>
+              </div>
+            </div>
+
+            <v-alert
+              v-if="sharedProxy.last_error"
+              type="warning"
+              variant="tonal"
+              density="comfortable"
+              class="mb-4"
+            >
+              {{ sharedProxy.last_error }}
+            </v-alert>
+
+            <v-alert
+              v-if="!hasMediaAccount"
+              type="info"
+              variant="tonal"
+              density="comfortable"
+              class="mb-4"
+            >
+              先绑定 Plex 或 Emby 账户后，这条共享反代才会真正接管线路。
+            </v-alert>
+
+            <div class="shared-proxy-actions">
+              <v-btn
+                color="primary"
+                :loading="sharedProxySubmitting"
+                :disabled="sharedProxySubmitting || !sharedProxy.domain.trim()"
+                @click="handleSaveSharedProxy"
+              >
+                保存并校验
+              </v-btn>
+              <v-btn
+                v-if="!sharedProxy.enabled"
+                color="success"
+                variant="outlined"
+                :loading="sharedProxySubmitting"
+                :disabled="sharedProxySubmitting || !canEnableSharedProxy"
+                @click="handleEnableSharedProxy"
+              >
+                启用线路
+              </v-btn>
+              <v-btn
+                v-else
+                color="warning"
+                variant="outlined"
+                :loading="sharedProxySubmitting"
+                :disabled="sharedProxySubmitting"
+                @click="handleDisableSharedProxy"
+              >
+                停用线路
+              </v-btn>
+            </div>
+          </v-card-text>
+        </v-card>
+
         <!-- Plex 账户信息 -->
         <v-card v-if="userInfo.plex_info" class="user-info-card mb-4 plex-account-card">
           <v-card-title class="card-title-section plex-title">
@@ -223,6 +327,44 @@
               >
                 {{ userInfo.plex_info.all_lib ? '全部' : '部分' }}
               </v-chip>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="cyan-darken-2" class="mr-2">mdi-source-branch</v-icon>
+                <span class="label-text">已选线路</span>
+              </div>
+              <div class="info-value">
+                <span class="value-text">{{ userInfo.plex_info.line_display_name || '自动选择' }}</span>
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="teal-darken-2" class="mr-2">mdi-rocket-launch</v-icon>
+                <span class="label-text">当前生效</span>
+              </div>
+              <div class="d-flex align-center justify-end info-value">
+                <v-chip
+                  size="small"
+                  :color="userInfo.plex_info.shared_proxy_active ? 'teal-darken-1' : 'primary'"
+                  class="route-mode-chip"
+                >
+                  {{ userInfo.plex_info.effective_line_display_name || '默认入口' }}
+                </v-chip>
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center entrance-url-row account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="deep-orange-darken-1" class="mr-2">mdi-web</v-icon>
+                <span class="label-text">生效入口</span>
+              </div>
+              <div
+                class="entrance-url-chip"
+                @click="copyToClipboard(userInfo.plex_info.effective_line_url)"
+                title="点击复制线路地址"
+              >
+                {{ userInfo.plex_info.effective_line_url }}
+                <v-icon size="x-small" class="ml-1">mdi-content-copy</v-icon>
+              </div>
             </div>
 
 
@@ -287,6 +429,44 @@
               >
                 {{ userInfo.emby_info.all_lib ? '全部' : '部分' }}
               </v-chip>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="cyan-darken-2" class="mr-2">mdi-source-branch</v-icon>
+                <span class="label-text">已选线路</span>
+              </div>
+              <div class="info-value">
+                <span class="value-text">{{ userInfo.emby_info.line_display_name || '自动选择' }}</span>
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="teal-darken-2" class="mr-2">mdi-rocket-launch</v-icon>
+                <span class="label-text">当前生效</span>
+              </div>
+              <div class="d-flex align-center justify-end info-value">
+                <v-chip
+                  size="small"
+                  :color="userInfo.emby_info.shared_proxy_active ? 'teal-darken-1' : 'primary'"
+                  class="route-mode-chip"
+                >
+                  {{ userInfo.emby_info.effective_line_display_name || '默认入口' }}
+                </v-chip>
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center entrance-url-row account-info-row">
+              <div class="d-flex align-center info-label">
+                <v-icon size="small" color="deep-orange-darken-1" class="mr-2">mdi-web</v-icon>
+                <span class="label-text">生效入口</span>
+              </div>
+              <div
+                class="entrance-url-chip"
+                @click="copyToClipboard(userInfo.emby_info.effective_line_url)"
+                title="点击复制线路地址"
+              >
+                {{ userInfo.emby_info.effective_line_url }}
+                <v-icon size="x-small" class="ml-1">mdi-content-copy</v-icon>
+              </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center entrance-url-row account-info-row">
               <div class="d-flex align-center info-label">
@@ -616,6 +796,11 @@ import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
 import { checkPrivilegedInviteCode } from '@/services/mediaServiceApi.js'
 import { getUserActivityStats } from '@/services/wheelService.js'
 import { getUserBlackjackStats } from '@/services/blackjackService.js'
+import {
+  disableSharedProxy,
+  enableSharedProxy,
+  saveSharedProxy
+} from '@/services/sharedProxyService.js'
 
 export default {
   name: 'UserInfo',
@@ -639,8 +824,21 @@ export default {
         plex_info: null,
         emby_info: null,
         overseerr_info: null,
+        shared_proxy: null,
         is_admin: false
       },
+      sharedProxy: {
+        domain: '',
+        savedDomain: '',
+        port: 443,
+        enabled: false,
+        verification_status: 'unknown',
+        last_error: '',
+        updated_at: null,
+        url: '',
+        target: ''
+      },
+      sharedProxySubmitting: false,
       loading: true,
       error: null,
       redeemingCodes: {}, // 用于跟踪每个邀请码的兑换状态
@@ -690,6 +888,31 @@ export default {
         (!this.activityLoading && this.activityStats.recent_games && this.activityStats.recent_games.length > 0) ||
         (!this.blackjackLoading && this.blackjackStats.recent_games && this.blackjackStats.recent_games.length > 0)
       )
+    },
+    hasMediaAccount() {
+      return Boolean(this.userInfo.plex_info || this.userInfo.emby_info)
+    },
+    sharedProxyDirty() {
+      return this.sharedProxy.domain.trim() !== this.sharedProxy.savedDomain.trim()
+    },
+    canEnableSharedProxy() {
+      return Boolean(this.sharedProxy.url && !this.sharedProxyDirty && this.hasMediaAccount)
+    },
+    sharedProxyVerificationText() {
+      const statusMap = {
+        verified: '已验证',
+        failed: '校验失败',
+        unknown: '待校验'
+      }
+      return statusMap[this.sharedProxy.verification_status] || '待校验'
+    },
+    sharedProxyVerificationColor() {
+      const colorMap = {
+        verified: 'success',
+        failed: 'warning',
+        unknown: 'grey'
+      }
+      return colorMap[this.sharedProxy.verification_status] || 'grey'
     }
   },
   mounted() {
@@ -734,8 +957,10 @@ export default {
     async fetchUserInfo() {
       try {
         this.loading = true
+        this.error = null
         const response = await getUserInfo()
         this.userInfo = response.data
+        this.applySharedProxy(response.data.shared_proxy)
         
         // 检查每个邀请码的特权状态
         if (this.userInfo.invitation_codes && this.userInfo.invitation_codes.length > 0) {
@@ -747,6 +972,22 @@ export default {
         this.error = err.response?.data?.detail || '获取用户信息失败'
         this.loading = false
         console.error('获取用户信息失败:', err)
+      }
+    },
+
+    applySharedProxy(profile) {
+      const shared = profile || {}
+      const domain = shared.domain || ''
+      this.sharedProxy = {
+        domain,
+        savedDomain: domain,
+        port: shared.port || 443,
+        enabled: Boolean(shared.enabled),
+        verification_status: shared.verification_status || 'unknown',
+        last_error: shared.last_error || '',
+        updated_at: shared.updated_at || null,
+        url: shared.url || '',
+        target: shared.target || ''
       }
     },
 
@@ -825,6 +1066,9 @@ export default {
       }
     },
     copyToClipboard(text) {
+      if (!text) {
+        return
+      }
       navigator.clipboard.writeText(text).then(() => {
         if (window.Telegram?.WebApp) {
           window.Telegram.WebApp.showPopup({
@@ -837,6 +1081,83 @@ export default {
       }).catch(err => {
         console.error('复制失败:', err)
       })
+    },
+
+    async handleSaveSharedProxy() {
+      const domain = this.sharedProxy.domain.trim()
+      if (!domain) {
+        this.showMessage('请先填写反代域名', 'error')
+        return
+      }
+
+      try {
+        this.sharedProxySubmitting = true
+        const result = await saveSharedProxy(domain)
+        if (!result.success) {
+          if (result.shared_proxy) {
+            this.applySharedProxy(result.shared_proxy)
+          }
+          this.showMessage(result.message || '保存共享反代失败', 'error')
+          return
+        }
+
+        await this.fetchUserInfo()
+        this.showMessage(result.message || '共享反代已保存', 'success')
+      } catch (error) {
+        console.error('保存共享反代失败:', error)
+        this.showMessage(error.response?.data?.message || '保存共享反代失败', 'error')
+      } finally {
+        this.sharedProxySubmitting = false
+      }
+    },
+
+    async handleEnableSharedProxy() {
+      if (!this.canEnableSharedProxy) {
+        this.showMessage('请先保存并校验可用的反代域名', 'error')
+        return
+      }
+
+      try {
+        this.sharedProxySubmitting = true
+        const result = await enableSharedProxy()
+        if (!result.success) {
+          if (result.shared_proxy) {
+            this.applySharedProxy(result.shared_proxy)
+          }
+          this.showMessage(result.message || '启用共享反代失败', 'error')
+          return
+        }
+
+        await this.fetchUserInfo()
+        this.showMessage(result.message || '共享反代已启用', 'success')
+      } catch (error) {
+        console.error('启用共享反代失败:', error)
+        this.showMessage(error.response?.data?.message || '启用共享反代失败', 'error')
+      } finally {
+        this.sharedProxySubmitting = false
+      }
+    },
+
+    async handleDisableSharedProxy() {
+      try {
+        this.sharedProxySubmitting = true
+        const result = await disableSharedProxy()
+        if (!result.success) {
+          if (result.shared_proxy) {
+            this.applySharedProxy(result.shared_proxy)
+          }
+          this.showMessage(result.message || '停用共享反代失败', 'error')
+          return
+        }
+
+        await this.fetchUserInfo()
+        this.showMessage(result.message || '共享反代已停用', 'success')
+      } catch (error) {
+        console.error('停用共享反代失败:', error)
+        this.showMessage(error.response?.data?.message || '停用共享反代失败', 'error')
+      } finally {
+        this.sharedProxySubmitting = false
+      }
     },
 
     // 兑换邀请码为积分
@@ -1519,6 +1840,29 @@ export default {
   box-shadow: 0 6px 18px rgba(255, 87, 34, 0.2);
   background: linear-gradient(135deg, rgba(255, 87, 34, 0.15) 0%, rgba(255, 87, 34, 0.08) 100%);
   border-color: rgba(255, 87, 34, 0.3);
+}
+
+.shared-proxy-note {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(0, 150, 136, 0.1) 0%, rgba(0, 188, 212, 0.06) 100%);
+  border: 1px solid rgba(0, 150, 136, 0.18);
+  color: rgba(var(--v-theme-on-surface), 0.78);
+  line-height: 1.6;
+}
+
+.shared-proxy-status-group {
+  gap: 8px;
+}
+
+.shared-proxy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.route-mode-chip {
+  max-width: 220px;
 }
 
 /* 邀请码容器样式 */

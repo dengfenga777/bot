@@ -42,6 +42,9 @@ from .user import (
     EmbyLinesResponse,
     LineTagRequest,
     LineTagResponse,
+    SharedProxyProfile,
+    SharedProxyRequest,
+    SharedProxyResponse,
     TelegramUser,
     UserInfo,
 )

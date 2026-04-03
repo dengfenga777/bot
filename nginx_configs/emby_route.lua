@@ -3,6 +3,13 @@
 
 local redis = require "resty.redis"
 
+local function extract_host(target)
+    if not target or target == "" then
+        return ""
+    end
+    return string.match(target, "^([^:]+)") or ""
+end
+
 local function get_user_line()
     -- 尝试从多个位置获取Emby用户ID
     local user_id = ngx.var.arg_UserId or
@@ -14,8 +21,8 @@ local function get_user_line()
         user_id = ngx.req.get_headers()["X-Emby-Token"]
     end
 
-    -- 默认线路（日本）
-    local default_line = "154.31.114.167:443"
+    -- 空值表示由 Nginx 回退到本地默认入口
+    local default_line = ""
 
     -- 如果没有用户ID，返回默认线路
     if not user_id or user_id == "" then
@@ -53,3 +60,4 @@ end
 
 -- 设置后端服务器变量
 ngx.var.backend_server = get_user_line()
+ngx.var.backend_ssl_name = extract_host(ngx.var.backend_server)

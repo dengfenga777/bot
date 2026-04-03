@@ -56,6 +56,8 @@ CHECKIN_TOTAL_RANK_MEDALS = (
     },
 )
 
+_UNSET = object()
+
 
 class DB:
     """class DB with thread-safe connection management"""
@@ -230,6 +232,18 @@ class DB:
                 UNIQUE(tg_id)
             );
 
+            CREATE TABLE IF NOT EXISTS shared_proxy_profile(
+                tg_id INTEGER PRIMARY KEY,
+                custom_domain TEXT NOT NULL,
+                custom_port INTEGER NOT NULL DEFAULT 443,
+                is_enabled INTEGER DEFAULT 0,
+                verification_status TEXT DEFAULT 'unknown',
+                verified_at INTEGER DEFAULT NULL,
+                last_error TEXT DEFAULT NULL,
+                created_at INTEGER DEFAULT (strftime('%s', 'now')),
+                updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
             -- 索引优化：为 line_traffic_stats 表添加关键索引（当月数据）
             CREATE INDEX IF NOT EXISTS idx_line_traffic_timestamp ON line_traffic_stats(timestamp);
             CREATE INDEX IF NOT EXISTS idx_line_traffic_service_timestamp ON line_traffic_stats(service, timestamp);
@@ -308,6 +322,7 @@ class DB:
         for sql in [
             "CREATE INDEX IF NOT EXISTS idx_invitation_owner_status ON invitation(owner, is_used, expires_at)",
             "CREATE INDEX IF NOT EXISTS idx_invitation_expires_at ON invitation(expires_at)",
+            "CREATE INDEX IF NOT EXISTS idx_shared_proxy_enabled ON shared_proxy_profile(is_enabled)",
         ]:
             try:
                 self.cur.execute(sql)
@@ -695,6 +710,58 @@ class DB:
                 "UPDATE overseerr SET tg_id = ? WHERE tg_id = ?",
                 (new_tg_id, old_tg_id),
             )
+
+            old_shared_proxy = cursor.execute(
+                "SELECT * FROM shared_proxy_profile WHERE tg_id = ?",
+                (old_tg_id,),
+            ).fetchone()
+            new_shared_proxy = cursor.execute(
+                "SELECT * FROM shared_proxy_profile WHERE tg_id = ?",
+                (new_tg_id,),
+            ).fetchone()
+            if old_shared_proxy and new_shared_proxy:
+                old_enabled = int(old_shared_proxy["is_enabled"] or 0)
+                new_enabled = int(new_shared_proxy["is_enabled"] or 0)
+                old_updated_at = int(old_shared_proxy["updated_at"] or 0)
+                new_updated_at = int(new_shared_proxy["updated_at"] or 0)
+                preferred = old_shared_proxy
+                if new_enabled > old_enabled or (
+                    new_enabled == old_enabled and new_updated_at > old_updated_at
+                ):
+                    preferred = new_shared_proxy
+
+                cursor.execute(
+                    "DELETE FROM shared_proxy_profile WHERE tg_id IN (?, ?)",
+                    (old_tg_id, new_tg_id),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO shared_proxy_profile
+                        (tg_id, custom_domain, custom_port, is_enabled, verification_status, verified_at, last_error, created_at, updated_at)
+                    VALUES
+                        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        new_tg_id,
+                        preferred["custom_domain"],
+                        preferred["custom_port"],
+                        preferred["is_enabled"],
+                        preferred["verification_status"],
+                        preferred["verified_at"],
+                        preferred["last_error"],
+                        preferred["created_at"],
+                        int(time.time()),
+                    ),
+                )
+            elif old_shared_proxy:
+                cursor.execute(
+                    """
+                    UPDATE shared_proxy_profile
+                    SET tg_id = ?, updated_at = strftime('%s', 'now')
+                    WHERE tg_id = ?
+                    """,
+                    (new_tg_id, old_tg_id),
+                )
 
             old_checkins = cursor.execute(
                 """
@@ -1256,6 +1323,141 @@ class DB:
                 )
         except Exception as e:
             logger.error(f"Error: {e}")
+            return False
+        else:
+            self.con.commit()
+        return True
+
+    def get_shared_proxy_profile(self, tg_id: int):
+        return self.cur.execute(
+            "SELECT * FROM shared_proxy_profile WHERE tg_id = ?",
+            (tg_id,),
+        ).fetchone()
+
+    def save_shared_proxy_profile(
+        self,
+        tg_id: int,
+        domain: str,
+        port: int = 443,
+        *,
+        enabled=None,
+        verification_status=None,
+        verified_at=_UNSET,
+        last_error=_UNSET,
+    ) -> bool:
+        current = self.get_shared_proxy_profile(tg_id)
+        enabled_value = (
+            int(enabled)
+            if enabled is not None
+            else int(current["is_enabled"] or 0) if current else 0
+        )
+        status_value = (
+            verification_status
+            if verification_status is not None
+            else current["verification_status"] if current else "unknown"
+        )
+        verified_at_value = (
+            current["verified_at"] if verified_at is _UNSET and current else None
+        )
+        if verified_at is not _UNSET:
+            verified_at_value = verified_at
+        last_error_value = (
+            current["last_error"] if last_error is _UNSET and current else None
+        )
+        if last_error is not _UNSET:
+            last_error_value = last_error
+
+        try:
+            if current:
+                self.cur.execute(
+                    """
+                    UPDATE shared_proxy_profile
+                    SET custom_domain = ?,
+                        custom_port = ?,
+                        is_enabled = ?,
+                        verification_status = ?,
+                        verified_at = ?,
+                        last_error = ?,
+                        updated_at = strftime('%s', 'now')
+                    WHERE tg_id = ?
+                    """,
+                    (
+                        domain,
+                        int(port),
+                        enabled_value,
+                        status_value,
+                        verified_at_value,
+                        last_error_value,
+                        tg_id,
+                    ),
+                )
+            else:
+                self.cur.execute(
+                    """
+                    INSERT INTO shared_proxy_profile
+                        (tg_id, custom_domain, custom_port, is_enabled, verification_status, verified_at, last_error)
+                    VALUES
+                        (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        tg_id,
+                        domain,
+                        int(port),
+                        enabled_value,
+                        status_value,
+                        verified_at_value,
+                        last_error_value,
+                    ),
+                )
+        except Exception as e:
+            logger.error(f"保存共享反代配置失败: {e}")
+            return False
+        else:
+            self.con.commit()
+        return True
+
+    def set_shared_proxy_enabled(
+        self,
+        tg_id: int,
+        enabled: bool,
+        *,
+        verification_status=None,
+        verified_at=_UNSET,
+        last_error=_UNSET,
+    ) -> bool:
+        current = self.get_shared_proxy_profile(tg_id)
+        if not current:
+            return False
+
+        status_value = (
+            verification_status
+            if verification_status is not None
+            else current["verification_status"]
+        )
+        verified_at_value = current["verified_at"] if verified_at is _UNSET else verified_at
+        last_error_value = current["last_error"] if last_error is _UNSET else last_error
+
+        try:
+            self.cur.execute(
+                """
+                UPDATE shared_proxy_profile
+                SET is_enabled = ?,
+                    verification_status = ?,
+                    verified_at = ?,
+                    last_error = ?,
+                    updated_at = strftime('%s', 'now')
+                WHERE tg_id = ?
+                """,
+                (
+                    int(enabled),
+                    status_value,
+                    verified_at_value,
+                    last_error_value,
+                    tg_id,
+                ),
+            )
+        except Exception as e:
+            logger.error(f"更新共享反代启用状态失败: {e}")
             return False
         else:
             self.con.commit()

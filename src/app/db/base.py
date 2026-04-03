@@ -239,6 +239,18 @@ class DBBase:
                 UNIQUE(tg_id)
             );
 
+            CREATE TABLE IF NOT EXISTS shared_proxy_profile(
+                tg_id INTEGER PRIMARY KEY,
+                custom_domain TEXT NOT NULL,
+                custom_port INTEGER NOT NULL DEFAULT 443,
+                is_enabled INTEGER DEFAULT 0,
+                verification_status TEXT DEFAULT 'unknown',
+                verified_at INTEGER DEFAULT NULL,
+                last_error TEXT DEFAULT NULL,
+                created_at INTEGER DEFAULT (strftime('%s', 'now')),
+                updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
             CREATE INDEX IF NOT EXISTS idx_line_traffic_timestamp ON line_traffic_stats(timestamp);
             CREATE INDEX IF NOT EXISTS idx_line_traffic_service_user_time ON line_traffic_stats(service, username, timestamp);
             CREATE INDEX IF NOT EXISTS idx_line_traffic_line_time ON line_traffic_stats(line, timestamp);
@@ -249,6 +261,7 @@ class DBBase:
             CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_month ON line_traffic_monthly_stats(line, year_month);
             CREATE INDEX IF NOT EXISTS idx_monthly_traffic_month ON line_traffic_monthly_stats(year_month);
             CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_stats ON line_traffic_monthly_stats(line, year_month, total_bytes);
+            CREATE INDEX IF NOT EXISTS idx_shared_proxy_enabled ON shared_proxy_profile(is_enabled);
 
             CREATE TABLE IF NOT EXISTS checkin_stats(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

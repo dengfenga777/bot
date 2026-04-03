@@ -11,6 +11,7 @@ from app.config import settings
 from app.db import DB
 from app.invitation_utils import INVITATION_EXPIRE_DAYS
 from app.log import uvicorn_logger as logger
+from app.shared_proxy import sync_user_media_routes
 from app.utils.utils import (
     get_user_name_from_tg_id,
     is_binded_premium_line,
@@ -383,6 +384,7 @@ async def unbind_emby_premium_free():
             )
             # 更新用户的 Emby 线路，last_line 为空则自动选择
             db.set_emby_line(last_line, tg_id=tg_id)
+            sync_user_media_routes(db, tg_id)
             # 更新缓存
             if last_line:
                 emby_user_defined_line_cache.put(str(emby_username).lower(), last_line)
@@ -431,6 +433,7 @@ async def unbind_plex_premium_free():
             )
             # 更新用户的 Plex 线路，last_line 为空则自动选择
             db.set_plex_line(last_line, tg_id=tg_id)
+            sync_user_media_routes(db, tg_id)
             # 更新缓存
             if last_line:
                 plex_user_defined_line_cache.put(str(plex_username).lower(), last_line)
@@ -484,6 +487,7 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
             )
             # 更新用户的 Emby 线路，last_line 为空则自动选择
             db.set_emby_line(last_line, tg_id=tg_id)
+            sync_user_media_routes(db, tg_id)
             # 更新缓存
             if last_line:
                 emby_user_defined_line_cache.put(str(emby_username).lower(), last_line)
@@ -518,6 +522,7 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
             )
             # 更新用户的 Plex 线路，last_line 为空则自动选择
             db.set_plex_line(last_line, tg_id=tg_id)
+            sync_user_media_routes(db, tg_id)
             # 更新缓存
             if last_line:
                 plex_user_defined_line_cache.put(str(plex_username).lower(), last_line)
@@ -552,6 +557,7 @@ async def unbind_specified_line_for_all_users(line: str):
             if line in user_emby_line:
                 # 如果用户绑定的线路是指定的线路，解绑
                 db.set_emby_line(line=None, tg_id=tg_id)
+                sync_user_media_routes(db, tg_id)
                 emby_user_defined_line_cache.delete(str(emby_username).lower())
                 emby_last_user_defined_line_cache.delete(str(emby_username).lower())
                 # 发送通知给用户
@@ -569,6 +575,7 @@ async def unbind_specified_line_for_all_users(line: str):
             if line in user_plex_line:
                 # 如果用户绑定的线路是指定的线路，解绑
                 db.set_plex_line(line=None, tg_id=tg_id)
+                sync_user_media_routes(db, tg_id)
                 plex_user_defined_line_cache.delete(str(plex_username).lower())
                 plex_last_user_defined_line_cache.delete(str(plex_username).lower())
                 # 发送通知给用户
@@ -1277,6 +1284,7 @@ async def change_tg_binding(
             emby_id=emby_id,
         )
         db.sync_checkin_total_rank_medals()
+        sync_user_media_routes(db, new_tg_id)
 
         remaining_credits = transfer_result["remaining_credits"]
         final_credits = transfer_result["final_credits"]
