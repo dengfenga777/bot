@@ -294,15 +294,62 @@ def sync_user_media_routes(db: Any, tg_id: int) -> tuple[bool, list[str]]:
     shared_target = shared_profile.get("target") if is_shared_proxy_enabled(shared_profile) else None
 
     plex_info = db.get_plex_info_by_tg_id(tg_id)
-    if plex_info and plex_info[4]:
+    if plex_info:
         plex_target = shared_target or _resolve_bound_line_target(plex_info[8])
-        if not redis_line_sync.sync_plex_line(plex_info[4], plex_target):
-            errors.append("Plex")
+        plex_id = plex_info[0]
+        plex_email = plex_info[3]
+        plex_username = plex_info[4]
+
+        if plex_id and not redis_line_sync.sync_plex_id_line(plex_id, plex_target):
+            errors.append("PlexId")
+        if plex_username and not redis_line_sync.sync_plex_username_line(
+            plex_username, plex_target
+        ):
+            errors.append("PlexUsername")
+        if plex_email and not redis_line_sync.sync_plex_email_line(plex_email, plex_target):
+            errors.append("PlexEmail")
 
     emby_info = db.get_emby_info_by_tg_id(tg_id)
-    if emby_info and emby_info[1]:
+    if emby_info:
         emby_target = shared_target or _resolve_bound_line_target(emby_info[7])
-        if not redis_line_sync.sync_emby_line(emby_info[1], emby_target):
+        emby_id = emby_info[1]
+        emby_username = emby_info[0]
+
+        if emby_id and not redis_line_sync.sync_emby_line(emby_id, emby_target):
             errors.append("Emby")
+        if emby_username and not redis_line_sync.sync_emby_username_line(
+            emby_username, emby_target
+        ):
+            errors.append("EmbyUsername")
 
     return not errors, errors
+
+
+def sync_all_media_routes(db: Any) -> tuple[int, list[int]]:
+    """启动时全量回填 Redis 路由，补齐历史用户映射。"""
+    synced_count = 0
+    failed_tg_ids: list[int] = []
+
+    rows = db.cur.execute(
+        """
+        SELECT DISTINCT tg_id
+        FROM (
+            SELECT tg_id FROM user WHERE tg_id IS NOT NULL
+            UNION
+            SELECT tg_id FROM emby_user WHERE tg_id IS NOT NULL
+            UNION
+            SELECT tg_id FROM shared_proxy_profile WHERE tg_id IS NOT NULL
+        )
+        ORDER BY tg_id
+        """
+    ).fetchall()
+
+    for row in rows:
+        tg_id = row[0]
+        ok, _ = sync_user_media_routes(db, tg_id)
+        if ok:
+            synced_count += 1
+        else:
+            failed_tg_ids.append(int(tg_id))
+
+    return synced_count, failed_tg_ids
