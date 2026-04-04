@@ -215,9 +215,23 @@ local function get_request_stream_rating_key()
     return tostring(path):match("/library/metadata/(%d+)")
 end
 
-local function match_session_block_to_request(block, request_part_id, request_rating_key)
+local function match_session_block_to_request(
+    block,
+    request_part_id,
+    request_rating_key,
+    user_token
+)
     if not block or block == "" then
         return false
+    end
+
+    if user_token and user_token ~= "" then
+        if block:find('token=' .. user_token, 1, true) then
+            return true
+        end
+        if block:find('X%-Plex%-Token=' .. user_token, 1, false) then
+            return true
+        end
     end
 
     if request_part_id and request_part_id ~= "" then
@@ -243,6 +257,31 @@ local function match_session_block_to_request(block, request_part_id, request_ra
     end
 
     return false
+end
+
+local function extract_account_id_from_session_block(block)
+    if not block or block == "" then
+        return nil
+    end
+
+    local open_tag_attrs = block:match("^<Video%s+(.-)>") or ""
+    local attrs = parse_xml_attributes(open_tag_attrs)
+    local account_id = normalize_identity(attrs.accountID)
+    if account_id then
+        return account_id
+    end
+
+    account_id = normalize_identity(block:match('<User%s+[^>]-id="([^"]+)"'))
+    if account_id then
+        return account_id
+    end
+
+    account_id = normalize_identity(block:match('<Player%s+[^>]-userID="([^"]+)"'))
+    if account_id then
+        return account_id
+    end
+
+    return nil
 end
 
 local function resolve_account_id_from_active_sessions(user_token)
@@ -292,8 +331,15 @@ local function resolve_account_id_from_active_sessions(user_token)
 
     local response_body = res.body or ""
     for block in response_body:gmatch("(<Video.-</Video>)") do
-        if match_session_block_to_request(block, request_part_id, request_rating_key) then
-            local account_id = normalize_identity(block:match('accountID="([^"]+)"'))
+        if
+            match_session_block_to_request(
+                block,
+                request_part_id,
+                request_rating_key,
+                user_token
+            )
+        then
+            local account_id = extract_account_id_from_session_block(block)
             if account_id then
                 set_token_cache_value("account_id", user_token, account_id)
                 ngx.log(
@@ -307,6 +353,13 @@ local function resolve_account_id_from_active_sessions(user_token)
                 )
                 return account_id
             end
+            ngx.log(
+                ngx.WARN,
+                "[Plex] 活动会话已命中当前播放，但未提取到 account_id part_id=",
+                request_part_id or "-",
+                " rating_key=",
+                request_rating_key or "-"
+            )
         end
     end
 
