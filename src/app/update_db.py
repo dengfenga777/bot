@@ -1,11 +1,14 @@
 import asyncio
 import json
+import re
 from datetime import datetime
+from pathlib import Path
 from time import time
 from urllib.parse import parse_qs, urlparse
 from uuid import NAMESPACE_URL, uuid3
 
 import httpx
+from filelock import FileLock, Timeout
 
 from app.cache import (
     emby_api_key_cache,
@@ -26,6 +29,525 @@ from app.utils.utils import (
     get_user_total_duration,
     send_message_by_url,
 )
+
+
+_NGINX_ACCESS_LOG_RE = re.compile(
+    r'^(?P<remote_addr>\S+) \S+ \S+ '
+    r'\[(?P<timestamp>[^\]]+)\] '
+    r'"(?P<method>\S+) (?P<request_uri>\S+) (?P<protocol>[^"]+)" '
+    r'(?P<status>\d{3}) (?P<bytes_sent>\d+)'
+)
+_EMBY_USER_ID_PATH_RE = re.compile(r"/Users/([^/]+)/", re.IGNORECASE)
+_PLEX_DIRECT_PLAY_PATH_RE = re.compile(r"^/library/parts/\d+/.+", re.IGNORECASE)
+_PLEX_TRANSCODE_PATH_RE = re.compile(r"^/video/:/transcode/", re.IGNORECASE)
+_PLEX_FILE_PATH_RE = re.compile(r"^/library/files/", re.IGNORECASE)
+_PLEX_METADATA_ID_RE = re.compile(r"/library/metadata/(\d+)", re.IGNORECASE)
+_EMBY_SESSION_TTL_SECONDS = 6 * 60 * 60
+_EMBY_SESSION_STATE_LIMIT = 2048
+_PLEX_TAUTULLI_HISTORY_CACHE_TTL_SECONDS = 5 * 60
+_plex_tautulli_history_cache: dict[str, tuple[float, list[dict]]] = {}
+
+
+def _load_nginx_traffic_state() -> dict:
+    path = settings.NGINX_TRAFFIC_STATE_PATH
+    default_state = {
+        "files": {},
+        "emby_play_sessions": {},
+    }
+
+    if not path.exists():
+        return default_state
+
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            state = json.load(handle)
+        if not isinstance(state, dict):
+            return default_state
+    except Exception as exc:
+        logger.warning(f"读取 Nginx 流量状态文件失败，将重新初始化: {exc}")
+        return default_state
+
+    state.setdefault("files", {})
+    state.setdefault("emby_play_sessions", {})
+    return state
+
+
+def _save_nginx_traffic_state(state: dict) -> None:
+    path = settings.NGINX_TRAFFIC_STATE_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(".tmp")
+    with open(temp_path, "w", encoding="utf-8") as handle:
+        json.dump(state, handle, ensure_ascii=False, indent=2, sort_keys=True)
+    temp_path.replace(path)
+
+
+def _cleanup_emby_play_sessions(play_sessions: dict) -> dict:
+    now_ts = int(time())
+    kept_items = []
+    for session_id, session_data in play_sessions.items():
+        if not isinstance(session_data, dict):
+            continue
+        updated_at = int(session_data.get("updated_at") or 0)
+        if now_ts - updated_at > _EMBY_SESSION_TTL_SECONDS:
+            continue
+        if not session_data.get("username"):
+            continue
+        kept_items.append((session_id, session_data))
+
+    kept_items.sort(
+        key=lambda item: int(item[1].get("updated_at") or 0),
+        reverse=True,
+    )
+    kept_items = kept_items[:_EMBY_SESSION_STATE_LIMIT]
+    return {session_id: session_data for session_id, session_data in kept_items}
+
+
+def _read_new_log_lines(
+    path: Path,
+    file_state: dict,
+    *,
+    limit: int,
+) -> tuple[list[str], dict]:
+    if not path.exists():
+        return [], file_state
+
+    stat_info = path.stat()
+    next_state = dict(file_state or {})
+    offset = int(next_state.get("offset") or 0)
+    inode = int(next_state.get("inode") or 0)
+
+    if inode != stat_info.st_ino or offset > stat_info.st_size:
+        offset = 0
+
+    lines: list[str] = []
+    with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+        handle.seek(offset)
+        while len(lines) < limit:
+            line = handle.readline()
+            if not line:
+                break
+            text = line.strip()
+            if text:
+                lines.append(text)
+        offset = handle.tell()
+
+    next_state.update(
+        {
+            "offset": offset,
+            "inode": stat_info.st_ino,
+            "path": str(path),
+            "updated_at": int(time()),
+        }
+    )
+    return lines, next_state
+
+
+def _parse_nginx_json_log_line(line: str, *, service: str) -> dict | None:
+    try:
+        data = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    data["service"] = service
+    return data
+
+
+def _parse_nginx_access_log_line(line: str, *, service: str) -> dict | None:
+    match = _NGINX_ACCESS_LOG_RE.match(line)
+    if not match:
+        return None
+
+    try:
+        timestamp = datetime.strptime(
+            match.group("timestamp"),
+            "%d/%b/%Y:%H:%M:%S %z",
+        ).isoformat()
+    except ValueError:
+        timestamp = datetime.now(settings.TZ).isoformat()
+
+    return {
+        "@timestamp": timestamp,
+        "remote_addr": match.group("remote_addr"),
+        "request_method": match.group("method"),
+        "request_uri": match.group("request_uri"),
+        "status": int(match.group("status")),
+        "bytes_sent": int(match.group("bytes_sent")),
+        "service": service,
+    }
+
+
+def _collect_fallback_traffic_logs(max_records: int) -> tuple[list[dict], dict]:
+    state = _load_nginx_traffic_state()
+    next_state = {
+        "files": dict(state.get("files") or {}),
+        "emby_play_sessions": dict(state.get("emby_play_sessions") or {}),
+    }
+    records: list[dict] = []
+    log_dir = Path(settings.NGINX_TRAFFIC_LOG_DIR)
+
+    candidates = [
+        ("plex_json", log_dir / "plex_traffic.log", "plex", _parse_nginx_json_log_line),
+        ("emby_access", log_dir / "emby_access.log", "emby", _parse_nginx_access_log_line),
+    ]
+
+    for state_key, path, service, parser in candidates:
+        remaining = max_records - len(records)
+        if remaining <= 0:
+            break
+        lines, file_state = _read_new_log_lines(
+            path,
+            next_state["files"].get(state_key, {}),
+            limit=remaining,
+        )
+        next_state["files"][state_key] = file_state
+        for line in lines:
+            parsed = parser(line, service=service)
+            if parsed:
+                records.append(parsed)
+
+    next_state["emby_play_sessions"] = _cleanup_emby_play_sessions(
+        next_state["emby_play_sessions"]
+    )
+    return records, next_state
+
+
+def _lookup_plex_user_id(_db: DB, username: str | None) -> str | None:
+    if not username:
+        return None
+    user_result = _db.cur.execute(
+        "SELECT plex_id FROM user WHERE LOWER(plex_username)=?",
+        (username.lower(),),
+    ).fetchone()
+    return user_result[0] if user_result else None
+
+
+def _lookup_emby_user_by_username(_db: DB, username: str | None) -> tuple[str | None, str | None]:
+    if not username:
+        return None, None
+    user_result = _db.cur.execute(
+        "SELECT emby_id, emby_username FROM emby_user WHERE LOWER(emby_username)=?",
+        (username.lower(),),
+    ).fetchone()
+    if not user_result:
+        return None, None
+    return user_result[1], user_result[0]
+
+
+def _lookup_emby_user_by_id(_db: DB, user_id: str | None) -> tuple[str | None, str | None]:
+    if not user_id:
+        return None, None
+    user_result = _db.cur.execute(
+        "SELECT emby_username, emby_id FROM emby_user WHERE emby_id=?",
+        (user_id,),
+    ).fetchone()
+    if not user_result:
+        return None, None
+    return user_result[0], user_result[1]
+
+
+def _is_plex_stream_request(request_uri: str) -> bool:
+    """仅统计真正的 Plex 播放流量，忽略账户/元数据/缩略图等请求。"""
+    path = urlparse(request_uri).path
+    return bool(
+        _PLEX_DIRECT_PLAY_PATH_RE.match(path)
+        or _PLEX_TRANSCODE_PATH_RE.match(path)
+        or _PLEX_FILE_PATH_RE.match(path)
+    )
+
+
+def _extract_plex_metadata_id(request_uri: str) -> str | None:
+    parsed_url = urlparse(request_uri)
+    query_params = parse_qs(parsed_url.query)
+
+    for value in query_params.get("path", []) + query_params.get("key", []):
+        match = _PLEX_METADATA_ID_RE.search(value or "")
+        if match:
+            return match.group(1)
+
+    match = _PLEX_METADATA_ID_RE.search(parsed_url.path)
+    if match:
+        return match.group(1)
+    return None
+
+
+def _extract_plex_product_hint(user_agent: str | None) -> str | None:
+    if not user_agent:
+        return None
+    prefix = user_agent.split("/", 1)[0].strip()
+    if not prefix or prefix.lower().startswith("mozilla"):
+        return None
+    return prefix.lower()
+
+
+def _get_tautulli_history_for_date(check_date: str) -> list[dict]:
+    now_ts = time()
+    cached = _plex_tautulli_history_cache.get(check_date)
+    if cached and now_ts - cached[0] < _PLEX_TAUTULLI_HISTORY_CACHE_TTL_SECONDS:
+        return cached[1]
+
+    data = Tautulli()._call_api(
+        "get_history",
+        {
+            "start_date": check_date,
+            "length": 200,
+        },
+    ) or {}
+    rows = data.get("data") if isinstance(data, dict) else []
+    history_rows = [row for row in rows if isinstance(row, dict)]
+    _plex_tautulli_history_cache[check_date] = (now_ts, history_rows)
+    return history_rows
+
+
+async def _resolve_plex_identity_from_tautulli(
+    _db: DB,
+    *,
+    timestamp: str | None,
+    remote_addr: str | None,
+    request_uri: str,
+    user_agent: str | None,
+) -> tuple[str | None, str | None]:
+    if not timestamp or not remote_addr:
+        return None, None
+
+    try:
+        request_dt = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None, None
+
+    check_date = request_dt.astimezone(settings.TZ).date().isoformat()
+    history_rows = _get_tautulli_history_for_date(check_date)
+    if not history_rows:
+        return None, None
+
+    metadata_id = _extract_plex_metadata_id(request_uri)
+    product_hint = _extract_plex_product_hint(user_agent)
+
+    def _row_matches(row: dict) -> bool:
+        if (row.get("ip_address") or "").strip() != remote_addr:
+            return False
+        if metadata_id and str(row.get("rating_key") or "") != metadata_id:
+            return False
+        if not product_hint:
+            return True
+        player = str(row.get("player") or "").lower()
+        product = str(row.get("product") or "").lower()
+        return product_hint in player or product_hint in product
+
+    def _distance_seconds(row: dict) -> float:
+        started = int(row.get("started") or 0)
+        stopped = int(row.get("stopped") or 0)
+        request_ts = request_dt.timestamp()
+        if started and stopped and started <= request_ts <= stopped + 300:
+            return 0.0
+        anchors = [value for value in (started, stopped) if value]
+        if not anchors:
+            return float("inf")
+        return min(abs(request_ts - value) for value in anchors)
+
+    candidates = [row for row in history_rows if _row_matches(row)]
+    if not candidates and metadata_id:
+        candidates = [
+            row
+            for row in history_rows
+            if str(row.get("rating_key") or "") == metadata_id
+        ]
+    if not candidates:
+        return None, None
+
+    best_row = min(candidates, key=_distance_seconds)
+    if _distance_seconds(best_row) > 6 * 60 * 60:
+        return None, None
+
+    username = best_row.get("user")
+    user_id = _lookup_plex_user_id(_db, username)
+    return username, user_id
+
+
+async def _resolve_plex_identity(
+    _db: DB,
+    request_uri: str,
+    *,
+    timestamp: str | None = None,
+    remote_addr: str | None = None,
+    user_agent: str | None = None,
+) -> tuple[str | None, str | None]:
+    parsed_url = urlparse(request_uri)
+    query_params = parse_qs(parsed_url.query)
+
+    token_list = query_params.get("X-Plex-Token") or query_params.get("x-plex-token")
+    if not token_list:
+        return None, None
+
+    token = token_list[0]
+    cached_username = plex_token_cache.get(token)
+    if isinstance(cached_username, bytes):
+        cached_username = cached_username.decode("utf-8")
+
+    username = cached_username
+    user_id = _lookup_plex_user_id(_db, username)
+    if username and user_id:
+        return username, user_id
+
+    try:
+        response = httpx.get(
+            "https://plex.tv/users/account.xml",
+            params={"X-Plex-Token": token},
+            timeout=5.0,
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            return None, None
+
+        import xml.etree.ElementTree as ET
+
+        root = ET.fromstring(response.text)
+        username = root.get("username")
+        if not username:
+            raise ValueError("Plex account API returned empty username")
+
+        plex_token_cache.put(token, username)
+        user_id = _lookup_plex_user_id(_db, username)
+        return username, user_id
+    except Exception as exc:
+        logger.debug(f"通过 Plex Token 解析用户名失败: {exc}")
+        username, user_id = await _resolve_plex_identity_from_tautulli(
+            _db,
+            timestamp=timestamp,
+            remote_addr=remote_addr,
+            request_uri=request_uri,
+            user_agent=user_agent,
+        )
+        if username:
+            plex_token_cache.put(token, username)
+        return username, user_id
+
+
+async def _resolve_emby_identity(
+    _db: DB,
+    request_uri: str,
+    play_sessions: dict,
+) -> tuple[str | None, str | None]:
+    parsed_url = urlparse(request_uri)
+    query_params = parse_qs(parsed_url.query)
+    path = parsed_url.path
+
+    username = None
+    user_id = None
+    play_session_id = (
+        (query_params.get("PlaySessionId") or query_params.get("playSessionId") or [None])[0]
+    )
+
+    api_key_list = (
+        query_params.get("api_key")
+        or query_params.get("ApiKey")
+        or query_params.get("X-Emby-Token")
+    )
+    user_id_list = query_params.get("UserId") or query_params.get("userId")
+
+    path_user_match = _EMBY_USER_ID_PATH_RE.search(path)
+    if path_user_match:
+        user_id = path_user_match.group(1)
+    elif user_id_list:
+        user_id = user_id_list[0]
+
+    if api_key_list:
+        api_key = api_key_list[0]
+        cached_username = emby_api_key_cache.get(api_key)
+        if isinstance(cached_username, bytes):
+            cached_username = cached_username.decode("utf-8")
+        username = cached_username
+
+        if not username:
+            try:
+                username = await Emby().get_emby_username_from_api_key(api_key)
+            except Exception as exc:
+                logger.debug(f"通过 Emby API Key 解析用户名失败: {exc}")
+                username = None
+
+    if username and not user_id:
+        username, user_id = _lookup_emby_user_by_username(_db, username)
+    elif user_id and not username:
+        username, user_id = _lookup_emby_user_by_id(_db, user_id)
+
+    if not username and play_session_id:
+        session_data = play_sessions.get(play_session_id)
+        if isinstance(session_data, dict):
+            username = session_data.get("username")
+            user_id = session_data.get("user_id")
+
+    if username and play_session_id:
+        play_sessions[play_session_id] = {
+            "username": username,
+            "user_id": user_id,
+            "updated_at": int(time()),
+        }
+
+    return username, user_id
+
+
+async def _process_traffic_log_entry(
+    _db: DB,
+    log_data: dict,
+    *,
+    emby_play_sessions: dict,
+) -> bool:
+    timestamp = log_data.get("@timestamp", "")
+    service = (log_data.get("service") or "").strip().lower()
+    request_uri = log_data.get("request_uri") or ""
+    status_code = int(log_data.get("status") or 0)
+    bytes_sent = int(log_data.get("bytes_sent") or 0)
+
+    if not service or not request_uri:
+        return False
+    if status_code < 200 or status_code >= 300:
+        return False
+    if bytes_sent < 1024:
+        return False
+
+    username = None
+    user_id = None
+    if service == "plex":
+        if not _is_plex_stream_request(request_uri):
+            return False
+        username, user_id = await _resolve_plex_identity(
+            _db,
+            request_uri,
+            timestamp=timestamp,
+            remote_addr=log_data.get("remote_addr"),
+            user_agent=log_data.get("http_user_agent"),
+        )
+    elif service == "emby":
+        username, user_id = await _resolve_emby_identity(
+            _db,
+            request_uri,
+            emby_play_sessions,
+        )
+    else:
+        return False
+
+    if not username:
+        return False
+
+    try:
+        formatted_timestamp = (
+            datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+            .astimezone(settings.TZ)
+            .isoformat()
+        )
+    except (ValueError, AttributeError):
+        formatted_timestamp = datetime.now(settings.TZ).isoformat()
+
+    return _db.create_line_traffic_entry(
+        line=f"http-{service}",
+        send_bytes=bytes_sent,
+        service=service,
+        username=username,
+        user_id=user_id,
+        timestamp=formatted_timestamp,
+    )
 
 
 def _build_credit_bonus_lines(dual_bind_multiplier: float, medal_multiplier: float):
@@ -559,182 +1081,82 @@ async def finish_expired_auctions_job():
 async def update_line_traffic_stats(
     count: int = settings.REDIS_LINE_TRAFFIC_STATS_HANDLE_SIZE,
 ):
-    """消费 Redis 中的 HTTP 流量日志并写入排行榜统计表。"""
-    values = stream_traffic_cache.redis_client.lpop(
-        "filebeat_nginx_stream_logs", count=count
-    )
-
-    if not values:
-        logger.info("没有新的流量日志数据")
+    """消费 HTTP 流量日志并写入排行榜统计表。"""
+    lock = FileLock(str(settings.DATA_PATH / "update_line_traffic_stats.lock"))
+    try:
+        lock.acquire(timeout=0)
+    except Timeout:
+        logger.info("流量统计任务正在执行中，本次跳过")
         return 0
 
-    _db = DB()
-    processed_count = 0
-
     try:
-        for raw_log in values:
-            try:
-                if isinstance(raw_log, bytes):
-                    raw_log = raw_log.decode("utf-8")
+        values = stream_traffic_cache.redis_client.lpop(
+            "filebeat_nginx_stream_logs", count=count
+        )
 
-                log_data = json.loads(raw_log)
+        source_label = "Redis 队列"
+        state: dict | None = None
 
-                timestamp = log_data.get("@timestamp", "")
-                service = (log_data.get("service") or "").strip().lower()
-                request_uri = log_data.get("request_uri") or ""
-                status_code = int(log_data.get("status") or 0)
-                bytes_sent = int(log_data.get("bytes_sent") or 0)
+        if values:
+            if not isinstance(values, list):
+                values = [values]
+            logger.info(f"从 Redis 队列读取到 {len(values)} 条流量日志")
+        elif settings.NGINX_TRAFFIC_FALLBACK_ENABLED:
+            values, state = _collect_fallback_traffic_logs(count)
+            source_label = "Nginx 日志 fallback"
+            if not values:
+                logger.info("Redis 队列为空，Nginx fallback 也没有新的流量日志")
+                return 0
+            logger.info(f"Redis 队列为空，改为从 Nginx 日志补采 {len(values)} 条流量日志")
+        else:
+            logger.info("没有新的流量日志数据")
+            return 0
 
-                if not service or not request_uri:
-                    continue
-                if status_code < 200 or status_code >= 300:
-                    continue
-                # 过滤心跳、播放进度等极小请求
-                if bytes_sent < 1024:
-                    continue
+        emby_play_sessions = {}
+        if state is not None:
+            emby_play_sessions = dict(state.get("emby_play_sessions") or {})
 
-                parsed_url = urlparse(request_uri)
-                query_params = parse_qs(parsed_url.query)
+        _db = DB()
+        processed_count = 0
 
-                username = None
-                user_id = None
-
-                if service == "plex":
-                    token_list = query_params.get("X-Plex-Token")
-                    if not token_list:
-                        continue
-
-                    token = token_list[0]
-                    cached_username = plex_token_cache.get(token)
-                    if isinstance(cached_username, bytes):
-                        cached_username = cached_username.decode("utf-8")
-                    username = cached_username
-
-                    if username:
-                        user_result = _db.cur.execute(
-                            "SELECT plex_id FROM user WHERE LOWER(plex_username)=?",
-                            (username.lower(),),
-                        ).fetchone()
-                        if user_result:
-                            user_id = user_result[0]
-                    else:
-                        try:
-                            plex_url = (
-                                f"{settings.PLEX_BASE_URL.strip('/')}/myplex/account"
-                                f"?X-Plex-Token={token}"
-                            )
-                            response = httpx.get(plex_url, timeout=5.0)
-                            if response.status_code != 200:
-                                continue
-
-                            import xml.etree.ElementTree as ET
-
-                            root = ET.fromstring(response.text)
-                            username = root.get("username")
-                            if not username:
-                                continue
-
-                            plex_token_cache.put(token, username)
-                            user_result = _db.cur.execute(
-                                "SELECT plex_id FROM user WHERE LOWER(plex_username)=?",
-                                (username.lower(),),
-                            ).fetchone()
-                            if user_result:
-                                user_id = user_result[0]
-                        except Exception as e:
-                            logger.debug(f"通过 Plex Token 解析用户名失败: {e}")
-                            continue
-
-                elif service == "emby":
-                    api_key_list = (
-                        query_params.get("api_key")
-                        or query_params.get("ApiKey")
-                        or query_params.get("X-Emby-Token")
-                    )
-                    user_id_list = query_params.get("UserId")
-
-                    if api_key_list:
-                        token = api_key_list[0]
-                        cached_username = emby_api_key_cache.get(token)
-                        if isinstance(cached_username, bytes):
-                            cached_username = cached_username.decode("utf-8")
-                        username = cached_username
-
-                        if username:
-                            user_result = _db.cur.execute(
-                                "SELECT emby_id FROM emby_user WHERE LOWER(emby_username)=?",
-                                (username.lower(),),
-                            ).fetchone()
-                            if user_result:
-                                user_id = user_result[0]
-                        else:
-                            try:
-                                emby = Emby()
-                                username = await emby.get_emby_username_from_api_key(
-                                    token
-                                )
-                                if not username:
-                                    continue
-
-                                emby_api_key_cache.put(token, username)
-                                user_result = _db.cur.execute(
-                                    "SELECT emby_id FROM emby_user WHERE LOWER(emby_username)=?",
-                                    (username.lower(),),
-                                ).fetchone()
-                                if user_result:
-                                    user_id = user_result[0]
-                            except Exception as e:
-                                logger.debug(f"通过 Emby API Key 解析用户名失败: {e}")
-                                continue
-                    elif user_id_list:
-                        emby_id = user_id_list[0]
-                        user_result = _db.cur.execute(
-                            "SELECT emby_username FROM emby_user WHERE emby_id=?",
-                            (emby_id,),
-                        ).fetchone()
-                        if user_result:
-                            username = user_result[0]
-                            user_id = emby_id
-                    else:
-                        continue
-
-                else:
-                    continue
-
-                if not username:
-                    continue
-
+        try:
+            for raw_log in values:
                 try:
-                    formatted_timestamp = (
-                        datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-                        .astimezone(settings.TZ)
-                        .isoformat()
-                    )
-                except (ValueError, AttributeError):
-                    formatted_timestamp = datetime.now(settings.TZ).isoformat()
+                    if state is None:
+                        if isinstance(raw_log, bytes):
+                            raw_log = raw_log.decode("utf-8")
+                        log_data = json.loads(raw_log)
+                    else:
+                        log_data = raw_log
 
-                if _db.create_line_traffic_entry(
-                    line=f"http-{service}",
-                    send_bytes=bytes_sent,
-                    service=service,
-                    username=username,
-                    user_id=user_id,
-                    timestamp=formatted_timestamp,
-                ):
-                    processed_count += 1
+                    if await _process_traffic_log_entry(
+                        _db,
+                        log_data,
+                        emby_play_sessions=emby_play_sessions,
+                    ):
+                        processed_count += 1
 
-            except json.JSONDecodeError as e:
-                logger.error(f"流量日志 JSON 解析失败: {e}")
-            except Exception as e:
-                logger.error(f"处理流量日志时出错: {e}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"流量日志 JSON 解析失败: {e}")
+                except Exception as e:
+                    logger.error(f"处理流量日志时出错: {e}")
 
-        logger.info(f"成功处理了 {processed_count} 条流量日志")
-        return processed_count
-    except Exception as e:
-        logger.error(f"更新线路流量统计时发生错误: {e}")
-        return processed_count
+            if state is not None:
+                state["emby_play_sessions"] = _cleanup_emby_play_sessions(
+                    emby_play_sessions
+                )
+                _save_nginx_traffic_state(state)
+
+            logger.info(f"通过 {source_label} 成功处理了 {processed_count} 条流量日志")
+            return processed_count
+        except Exception as e:
+            logger.error(f"更新线路流量统计时发生错误: {e}")
+            return processed_count
+        finally:
+            _db.close()
     finally:
-        _db.close()
+        if lock.is_locked:
+            lock.release()
 
 
 async def update_traffic_stats_from_tautulli():
